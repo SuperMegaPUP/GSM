@@ -41,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getMe } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { toast } from "sonner";
 
 // =============================================================
 // Навигация
@@ -53,7 +54,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Подбор масел", icon: Search },
+  { href: "/dashboard/search", label: "Подбор масел", icon: Search },
   { href: "/dashboard/imports", label: "Загрузка каталогов", icon: Upload },
   { href: "/dashboard/clients", label: "Клиенты", icon: Users },
   { href: "/dashboard/sales-copilot", label: "AI-Суфлёр", icon: Bot },
@@ -303,8 +304,6 @@ function TopNav({ onToggle }: { collapsed?: boolean; onToggle: () => void }) {
 // =============================================================
 // Основной лэйаут
 // =============================================================
-
-import { toast } from "sonner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
