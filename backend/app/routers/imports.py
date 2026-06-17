@@ -2,15 +2,15 @@ import io
 import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.core.minio_client import minio_client
 from app.tasks.etl_tasks import parse_excel_task
-from app.models.models import ImportBatch, ImportStatus
+from app.models.models import ImportBatch, ImportStatus, User
 from app.schemas.etl_schemas import ImportBatchResponse
 from app.core.dependencies import get_current_active_user
-from app.models.models import User
 
 router = APIRouter(prefix="/api/v1/imports", tags=["imports"])
 
@@ -39,7 +39,12 @@ async def upload_excel(
     minio_path = f"{current_user.company_id}/{file_uuid}.xlsx"
 
     try:
-        await _upload_to_minio(content, minio_path, file.content_type or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        await _upload_to_minio(
+            content,
+            minio_path,
+            file.content_type
+            or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -61,8 +66,30 @@ async def upload_excel(
     return batch
 
 
+@router.get("/{batch_id}/status", response_model=ImportBatchResponse)
+async def get_import_status(
+    batch_id: uuid_pkg.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await session.execute(
+        select(ImportBatch).where(
+            ImportBatch.id == batch_id,
+            ImportBatch.company_id == current_user.company_id,
+        )
+    )
+    batch = result.scalar_one_or_none()
+    if batch is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Импорт не найден",
+        )
+    return batch
+
+
 async def _upload_to_minio(content: bytes, object_path: str, content_type: str) -> None:
     import asyncio
+
     await asyncio.to_thread(
         minio_client.put_object,
         "excel-imports",
