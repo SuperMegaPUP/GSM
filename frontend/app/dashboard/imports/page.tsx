@@ -121,9 +121,23 @@ export default function ImportsPage() {
   const [status, setStatus] = useState<ImportStatus | null>(null);
   const [progress, setProgress] = useState(0);
   const [report, setReport] = useState<ImportBatch | null>(null);
-  const [history] = useState<ImportBatch[]>(MOCK_HISTORY);
+  const [history, setHistory] = useState<ImportBatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Загрузка истории импортов из API
+  const loadHistory = useCallback(async () => {
+    try {
+      const response = await api.get<ImportBatch[]>("/imports");
+      setHistory(response.data);
+    } catch {
+      // Игнорируем ошибку при загрузке истории
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   // Очистка интервала при размонтировании или завершении
   useEffect(() => {
@@ -224,7 +238,10 @@ export default function ImportsPage() {
       const batch = response.data;
       setBatchId(batch.id);
       setStatus(batch.status as ImportStatus);
+      setUploading(false);
 
+      // Обновляем историю после загрузки
+      loadHistory();
       toast.info("Файл принят на обработку");
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } }; message?: string };
@@ -379,7 +396,7 @@ export default function ImportsPage() {
                 <Upload className="mr-2 h-4 w-4" />
                 Загрузить ещё файл
               </Button>
-              <Button onClick={() => toast.info("Переход к списку каталогов...")}>
+              <Button onClick={loadHistory}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Обновить список каталогов
               </Button>

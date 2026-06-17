@@ -78,6 +78,20 @@ async def upload_excel(
     return batch
 
 
+@router.get("", response_model=list[ImportBatchResponse])
+async def list_imports(
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await session.execute(
+        select(ImportBatch)
+        .where(ImportBatch.company_id == current_user.company_id)
+        .order_by(ImportBatch.created_at.desc())
+        .limit(50)
+    )
+    return result.scalars().all()
+
+
 @router.get("/{batch_id}/status", response_model=ImportBatchResponse)
 async def get_import_status(
     batch_id: uuid_pkg.UUID,
