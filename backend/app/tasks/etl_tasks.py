@@ -164,13 +164,8 @@ def parse_excel_task(
             await _update_batch(
                 batch_id,
                 ImportStatus.completed,
-                total_rows=pipeline_result["success"],
-                new_rows=(
-                    pipeline_result["created_brands"]
-                    + pipeline_result["created_models"]
-                    + pipeline_result["created_variants"]
-                    + pipeline_result["created_fluids"]
-                ),
+                total_rows=pipeline_result["total"],
+                new_rows=pipeline_result["success"],
                 errors=total_errors,
                 engine=engine,
             )
