@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from app.schemas.search_schemas import (
     CarSearchSchema,
     FluidSearchResult,
+    ModelSearchInfo,
     NodeGroupResult,
     SearchResponse,
 )
@@ -106,6 +107,25 @@ async def _search_exact_sql(
 
     groups = _group_by_node(all_recs)
 
+    # Собираем информацию о всех найденных моделях
+    models_info: list[ModelSearchInfo] = []
+    for cm in car_models:
+        variant_count_stmt = select(CarVariant).where(
+            CarVariant.company_id == tenant_id,
+            CarVariant.model_id == cm.id,
+        )
+        variant_count_result = await db.execute(variant_count_stmt)
+        variant_count = len(variant_count_result.scalars().all())
+        
+        models_info.append(ModelSearchInfo(
+            name=cm.name,
+            engine_code=None,
+            engine_volume=None,
+            year_start=cm.year_start,
+            year_end=cm.year_end,
+            variants_count=variant_count,
+        ))
+
     # Берём первую модель и первый вариант для отображения в заголовке
     first_model = car_models[0]
     first_variant_stmt = select(CarVariant).where(
@@ -125,6 +145,7 @@ async def _search_exact_sql(
         year_start=first_model.year_start,
         year_end=first_model.year_end,
         groups=groups,
+        models=models_info,
     )
 
 

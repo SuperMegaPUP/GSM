@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SalesCopilot } from "@/components/SalesCopilot";
 import api from "@/lib/api";
@@ -41,6 +42,15 @@ interface NodeGroupResult {
   recommendations: FluidSearchResult[];
 }
 
+interface ModelSearchInfo {
+  name: string;
+  engine_code: string | null;
+  engine_volume: number | null;
+  year_start: number | null;
+  year_end: number | null;
+  variants_count: number;
+}
+
 interface SearchResponse {
   found_by: string;
   variant_id: string | null;
@@ -51,6 +61,7 @@ interface SearchResponse {
   year_start: number | null;
   year_end: number | null;
   groups: NodeGroupResult[];
+  models: ModelSearchInfo[];
 }
 
 // =============================================================
@@ -390,6 +401,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
   const handleSearch = async (params: Record<string, string | number>) => {
     setLoading(true);
@@ -476,6 +488,11 @@ export default function SearchPage() {
                     {results.year_start}–{results.year_end}
                   </Badge>
                 )}
+                {results.models.length > 1 && (
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                    🚗 {results.models.length} моделей
+                  </Badge>
+                )}
                 <Badge
                   variant="outline"
                   className="ml-auto bg-blue-50 text-blue-700 border-blue-200"
@@ -485,6 +502,45 @@ export default function SearchPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Вкладки/селектор по моделям (когда найдено несколько) */}
+          {results.models.length > 1 && (
+            <Card>
+              <CardContent className="py-4 space-y-3">
+                <p className="text-sm font-medium">Найдено {results.models.length} моделей {results.brand}:</p>
+                
+                {results.models.length <= 10 ? (
+                  <Tabs value={selectedModel || results.models[0]?.name} onValueChange={setSelectedModel}>
+                    <TabsList className="flex flex-wrap gap-2">
+                      {results.models.map((m) => (
+                        <TabsTrigger key={m.name} value={m.name} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">
+                          {m.name} ({m.variants_count})
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                ) : (
+                  <div className="space-y-2">
+                    <Select value={selectedModel || results.models[0]?.name} onValueChange={setSelectedModel}>
+                      <SelectTrigger className="w-full sm:w-80">
+                        <SelectValue placeholder="Выберите модель" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {results.models.map((m) => (
+                          <SelectItem key={m.name} value={m.name}>
+                            {m.name} ({m.variants_count} вариантов)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Показаны все {results.models.length} моделей. Выберите конкретную для точного подбора.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Вкладки по узлам */}
           <Tabs defaultValue={results.groups[0]?.node_type || ""}>

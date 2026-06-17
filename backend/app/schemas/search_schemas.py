@@ -41,6 +41,16 @@ class NodeGroupResult(BaseModel):
     recommendations: list[FluidSearchResult]
 
 
+class ModelSearchInfo(BaseModel):
+    """Информация о найденной модели автомобиля."""
+    name: str
+    engine_code: Optional[str] = None
+    engine_volume: Optional[float] = None
+    year_start: Optional[int] = None
+    year_end: Optional[int] = None
+    variants_count: int = 0
+
+
 class SearchResponse(BaseModel):
     found_by: str
     variant_id: Optional[UUID] = None
@@ -51,3 +61,4 @@ class SearchResponse(BaseModel):
     year_start: Optional[int] = None
     year_end: Optional[int] = None
     groups: list[NodeGroupResult]
+    models: list[ModelSearchInfo] = []
