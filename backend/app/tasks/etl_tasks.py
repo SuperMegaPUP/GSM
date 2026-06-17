@@ -7,6 +7,7 @@ import uuid as uuid_pkg
 from celery import shared_task
 from dataclasses import asdict
 from minio import Minio
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.core.database import async_session
 from app.models.models import ImportBatch, ImportStatus
 from app.services.excel_parser import parse_japanese_catalog, list_sheets
 from app.services.etl_pipeline import process_import_batch
+from app.services.vector_indexer import index_recommendations_to_qdrant
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +153,8 @@ def parse_excel_task(
             pipeline_result["created_fluids"],
         )
 
+        index_qdrant_task.delay(batch_id, str(tenant_id))
+
         return {
             "batch_id": batch_id,
             "status": ImportStatus.completed.value,
@@ -188,3 +192,49 @@ def parse_excel_task(
                 os.remove(tmp_path)
             except OSError:
                 pass
+
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def index_qdrant_task(
+    self,
+    batch_id: str,
+    tenant_id: str,
+) -> dict:
+    logger.info(
+        "Задача index_qdrant_task: batch=%s, tenant=%s", batch_id, tenant_id
+    )
+
+    async def _run() -> dict:
+        qdrant = AsyncQdrantClient(url=settings.qdrant_url)
+        try:
+            async with async_session() as db:
+                count = await index_recommendations_to_qdrant(
+                    tenant_id=uuid_pkg.UUID(tenant_id),
+                    db=db,
+                    qdrant_client=qdrant,
+                )
+            logger.info(
+                "Индексация Qdrant завершена batch=%s: %d точек",
+                batch_id, count,
+            )
+            return {
+                "batch_id": batch_id,
+                "tenant_id": tenant_id,
+                "indexed_points": count,
+            }
+        finally:
+            await qdrant.close()
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:
+        logger.error(
+            "Ошибка индексации Qdrant batch=%s: %s",
+            batch_id, exc, exc_info=True,
+        )
+        raise self.retry(exc=exc)

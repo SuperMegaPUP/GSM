@@ -8,6 +8,18 @@ repos:
       - id: ruff-format
         files: ^backend/
 
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+      - id: mypy
+        files: ^backend/
+        args: [--ignore-missing-imports]
+        additional_dependencies:
+          - pydantic
+          - sqlalchemy
+          - fastapi
+          - types-PyYAML
+
   - repo: local
     hooks:
       - id: python-syntax-check

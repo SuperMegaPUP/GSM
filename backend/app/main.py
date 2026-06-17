@@ -10,7 +10,7 @@ from redis import asyncio as aioredis
 from app.core.config import settings
 from app.core.database import engine, async_session, text
 from app.core.minio_client import ensure_bucket_exists
-from app.routers import auth, catalog, imports
+from app.routers import auth, catalog, imports, sales_copilot, search
 
 
 # =============================================================
@@ -37,6 +37,9 @@ async def lifespan(app: FastAPI):
         settings.redis_url, decode_responses=True
     )
     state.qdrant = AsyncQdrantClient(url=settings.qdrant_url)
+
+    app.state.redis = state.redis
+    app.state.qdrant = state.qdrant
 
     async with async_session() as session:
         await session.execute(text("SELECT 1"))
@@ -89,6 +92,8 @@ class HealthResponse(BaseModel):
 app.include_router(auth.router)
 app.include_router(catalog.router)
 app.include_router(imports.router)
+app.include_router(search.router)
+app.include_router(sales_copilot.router)
 
 
 # =============================================================

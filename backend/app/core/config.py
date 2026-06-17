@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5:14b"
     llm_api_key: str = "ollama"  # Ollama не требует ключа, но openai-совместимый API ждёт
 
+    # Embeddings
+    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_dim: int = 384
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

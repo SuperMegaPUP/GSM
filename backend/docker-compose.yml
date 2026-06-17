@@ -150,6 +150,27 @@ services:
       - ./app:/app/app
     logging: *default-logging
 
+  dev-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oil-dev-tools
+    profiles: ["dev"]
+    command: >
+      sh -c "
+        pip install --no-cache-dir -r requirements-dev.txt &&
+        echo '=== Ruff Check ===' &&
+        ruff check app/ &&
+        echo '=== Ruff Format ===' &&
+        ruff format --check app/ &&
+        echo '=== Mypy ===' &&
+        mypy app/ --ignore-missing-imports &&
+        echo '=== Все проверки пройдены ==='
+      "
+    volumes:
+      - ./app:/app/app
+    logging: *default-logging
+
   nginx:
     image: nginx:alpine
     container_name: oil-nginx
