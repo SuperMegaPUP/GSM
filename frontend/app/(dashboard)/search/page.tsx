@@ -11,14 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { SalesCopilot } from "@/components/SalesCopilot";
 import api from "@/lib/api";
 
 // =============================================================
@@ -82,7 +75,12 @@ const NODE_TABS: Record<string, { icon: string; label: string }> = {
 // =============================================================
 
 function FluidCard({ fluid }: { fluid: FluidSearchResult }) {
-  const [aiOpen, setAiOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+
+  // Формируем контекст для ИИ из данных масла
+  const contextText = [fluid.brand, fluid.product_line, fluid.viscosity_sae, fluid.api_class]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <>
@@ -179,7 +177,7 @@ function FluidCard({ fluid }: { fluid: FluidSearchResult }) {
             variant="outline"
             size="sm"
             className="w-full mt-2"
-            onClick={() => setAiOpen(true)}
+            onClick={() => setCopilotOpen(true)}
           >
             <Bot className="mr-2 h-4 w-4" />
             Спросить ИИ-эксперта
@@ -187,27 +185,13 @@ function FluidCard({ fluid }: { fluid: FluidSearchResult }) {
         </CardContent>
       </Card>
 
-      {/* Диалог ИИ-эксперта (заглушка) */}
-      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>ИИ-эксперт по подбору масел</DialogTitle>
-            <DialogDescription>
-              Задайте вопрос об этом масле или попросите подобрать аналог.
-              Функция будет доступна в следующем обновлении.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiOpen(false)}>
-              Закрыть
-            </Button>
-            <Button disabled>
-              <Bot className="mr-2 h-4 w-4" />
-              Спросить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Sales Copilot виджет (Dialog) с контекстом масла */}
+      <SalesCopilot
+        open={copilotOpen}
+        onOpenChange={setCopilotOpen}
+        initialContext={contextText}
+        variant="dialog"
+      />
     </>
   );
 }
