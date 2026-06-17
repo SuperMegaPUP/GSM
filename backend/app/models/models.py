@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -90,7 +91,8 @@ class Company(Base, TimestampMixin):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     subscription_status: Mapped[SubscriptionStatus] = mapped_column(
-        default=SubscriptionStatus.active
+        SAEnum(SubscriptionStatus, name="subscription_status", create_type=False),
+        default=SubscriptionStatus.active,
     )
     grace_period_ends_at: Mapped[Optional[datetime]]
     settings: Mapped[dict] = mapped_column(
@@ -111,7 +113,10 @@ class User(Base, TimestampMixin, TenantAwareMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), default="")
-    role: Mapped[UserRole] = mapped_column(default=UserRole.manager)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, name="user_role", create_type=False),
+        default=UserRole.manager,
+    )
     is_active: Mapped[bool] = mapped_column(default=True)
 
     # Связи
@@ -207,7 +212,8 @@ class Fluid(Base, TimestampMixin, TenantAwareMixin):
         comment="Список OEM-допусков: [\"VW 502.00\", \"MB 229.5\"]",
     )
     fluid_type: Mapped[FluidType] = mapped_column(
-        default=FluidType.engine_oil
+        SAEnum(FluidType, name="fluid_type", create_type=False),
+        default=FluidType.engine_oil,
     )
     hash_signature: Mapped[Optional[str]] = mapped_column(
         String(64), unique=True, comment="Хэш для дедупликации"
@@ -228,7 +234,8 @@ class Recommendation(Base, TimestampMixin, TenantAwareMixin):
         ForeignKey("car_variants.id", ondelete="CASCADE"), nullable=False
     )
     node_type: Mapped[NodeType] = mapped_column(
-        comment="Узел: ENGINE, AUTO_TRANSMISSION, DIFF и т.д."
+        SAEnum(NodeType, name="node_type", create_type=False),
+        comment="Узел: ENGINE, AUTO_TRANSMISSION, DIFF и т.д.",
     )
     fluid_id: Mapped[UUID] = mapped_column(
         ForeignKey("fluids.id", ondelete="CASCADE"), nullable=False
@@ -268,7 +275,10 @@ class ImportBatch(Base, TimestampMixin, TenantAwareMixin):
     uploaded_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    status: Mapped[ImportStatus] = mapped_column(default=ImportStatus.pending)
+    status: Mapped[ImportStatus] = mapped_column(
+        SAEnum(ImportStatus, name="import_status", create_type=False),
+        default=ImportStatus.pending,
+    )
     total_rows: Mapped[int] = mapped_column(default=0)
     new_rows: Mapped[int] = mapped_column(default=0)
     duplicates: Mapped[int] = mapped_column(default=0)

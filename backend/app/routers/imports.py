@@ -1,16 +1,20 @@
 import io
+import logging
 import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.minio_client import minio_client
 from app.tasks.etl_tasks import parse_excel_task
 from app.models.models import ImportBatch, ImportStatus, User
 from app.schemas.etl_schemas import ImportBatchResponse
 from app.core.dependencies import get_current_active_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/imports", tags=["imports"])
 
@@ -61,7 +65,15 @@ async def upload_excel(
     await session.commit()
     await session.refresh(batch)
 
-    parse_excel_task.delay(str(batch.id), minio_path)
+    try:
+        from kombu import Connection
+        with Connection(settings.redis_url) as conn:
+            parse_excel_task.apply_async(
+                args=[str(batch.id), minio_path],
+                connection=conn,
+            )
+    except Exception:
+        logger.exception("Celery dispatch failed")
 
     return batch
 

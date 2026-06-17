@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, ORMExecuteState, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, ORMExecuteState, Session, Mapped, mapped_column
 from sqlalchemy.sql import Select, Update, Delete
 
 from app.core.config import settings
@@ -62,7 +62,7 @@ TENANT_AWARE_TABLES = {
 }
 
 
-@event.listens_for(engine.sync_engine, "do_orm_execute")
+@event.listens_for(Session, "do_orm_execute")
 def _apply_tenant_filter(execute_state: ORMExecuteState) -> None:
     """Автоматически добавляет фильтр company_id ко всем SELECT/UPDATE/DELETE
     для таблиц, помеченных как tenant-aware.
@@ -82,23 +82,24 @@ def _apply_tenant_filter(execute_state: ORMExecuteState) -> None:
     statement = execute_state.statement
 
     if isinstance(statement, Select):
-        for entity in statement.entity_descriptions:
-            table_name = getattr(entity.get("entity"), "__tablename__", None)
+        for col_desc in statement.column_descriptions:
+            entity = col_desc.get("type", col_desc.get("expr"))
+            if entity is None:
+                continue
+            table_name = getattr(entity, "__tablename__", None)
             if table_name and table_name in TENANT_AWARE_TABLES:
                 statement = statement.where(
                     text(f"{table_name}.company_id = :_tenant_id")
-                )
+                ).params(_tenant_id=str(tenant_id))
                 execute_state.statement = statement
-                execute_state.parameters.setdefault("_tenant_id", str(tenant_id))
 
     elif isinstance(statement, (Update, Delete)):
         table_name = getattr(statement.table, "name", None)
         if table_name and table_name in TENANT_AWARE_TABLES:
             statement = statement.where(
                 text(f"{table_name}.company_id = :_tenant_id")
-            )
+            ).params(_tenant_id=str(tenant_id))
             execute_state.statement = statement
-            execute_state.parameters.setdefault("_tenant_id", str(tenant_id))
 
 
 # =============================================================

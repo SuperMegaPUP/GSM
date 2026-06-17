@@ -81,14 +81,14 @@ def parse_excel_task(
 
     tmp_path = None
 
-    try:
-        asyncio.run(
-            _update_batch(batch_id, ImportStatus.processing)
-        )
+    async def _run(batch_uuid: uuid_pkg.UUID) -> dict:
+        await _update_batch(batch_id, ImportStatus.processing)
 
         client = _minio_client()
-        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".xlsx")
+        tmp_fd, tmp_path_inner = tempfile.mkstemp(suffix=".xlsx")
         os.close(tmp_fd)
+        nonlocal tmp_path
+        tmp_path = tmp_path_inner
 
         client.fget_object("excel-imports", minio_path, tmp_path)
 
@@ -114,23 +114,31 @@ def parse_excel_task(
             len(raw_row_dicts), file_errors,
         )
 
-        batch_uuid = uuid_pkg.UUID(batch_id)
+        async with async_session() as db:
+            tenant_id = await _get_batch_tenant(db, batch_uuid)
+            if not tenant_id:
+                raise RuntimeError(f"Batch {batch_id} не найден")
 
-        async def _run_pipeline() -> dict:
-            async with async_session() as db:
-                tenant_id = await _get_batch_tenant(db, batch_uuid)
-                if not tenant_id:
-                    raise RuntimeError(f"Batch {batch_id} не найден")
+            pipeline_result = await process_import_batch(
+                batch_id=batch_uuid,
+                raw_rows=raw_row_dicts,
+                tenant_id=tenant_id,
+                db=db,
+            )
 
-                pipeline_result = await process_import_batch(
-                    batch_id=batch_uuid,
-                    raw_rows=raw_row_dicts,
-                    tenant_id=tenant_id,
-                    db=db,
-                )
-                return pipeline_result
-
-        pipeline_result = asyncio.run(_run_pipeline())
+        total_errors = file_errors + pipeline_result["errors"]
+        await _update_batch(
+            batch_id,
+            ImportStatus.completed,
+            total_rows=pipeline_result["success"],
+            new_rows=(
+                pipeline_result["created_brands"]
+                + pipeline_result["created_models"]
+                + pipeline_result["created_variants"]
+                + pipeline_result["created_fluids"]
+            ),
+            errors=total_errors,
+        )
 
         logger.info(
             "ETL завершён: успех=%d, ошибок=%d | "
@@ -143,22 +151,6 @@ def parse_excel_task(
             pipeline_result["created_fluids"],
         )
 
-        total_errors = file_errors + pipeline_result["errors"]
-        asyncio.run(
-            _update_batch(
-                batch_id,
-                ImportStatus.completed,
-                total_rows=pipeline_result["success"],
-                new_rows=(
-                    pipeline_result["created_brands"]
-                    + pipeline_result["created_models"]
-                    + pipeline_result["created_variants"]
-                    + pipeline_result["created_fluids"]
-                ),
-                errors=total_errors,
-            )
-        )
-
         return {
             "batch_id": batch_id,
             "status": ImportStatus.completed.value,
@@ -167,26 +159,29 @@ def parse_excel_task(
             "details": pipeline_result,
         }
 
+    try:
+        batch_uuid = uuid_pkg.UUID(batch_id)
+        return asyncio.run(_run(batch_uuid))
     except Exception as exc:
         logger.error(
             "Ошибка ETL batch %s: %s", batch_id, exc, exc_info=True
         )
 
-        try:
-            asyncio.run(
-                _update_batch(
+        async def _set_failed():
+            try:
+                await _update_batch(
                     batch_id,
                     ImportStatus.failed,
                     error_message=str(exc),
                 )
-            )
-        except Exception as db_err:
-            logger.error(
-                "Не удалось обновить статус batch %s: %s", batch_id, db_err
-            )
+            except Exception as db_err:
+                logger.error(
+                    "Не удалось обновить статус batch %s: %s", batch_id, db_err
+                )
+
+        asyncio.run(_set_failed())
 
         raise self.retry(exc=exc)
-
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:

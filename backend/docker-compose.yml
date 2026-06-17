@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-logging: &default-logging
   driver: "json-file"
   options:
@@ -100,7 +98,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: uploads
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-in-prod}
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://192.168.31.192:1234/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:14b}
       DEBUG: ${DEBUG:-false}
     depends_on:
@@ -137,7 +135,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: uploads
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-in-prod}
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://192.168.31.192:1234/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:14b}
       DEBUG: ${DEBUG:-false}
     command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2

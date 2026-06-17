@@ -122,7 +122,7 @@ async def health_check():
     qdrant_status = "ok"
     try:
         if state.qdrant:
-            await state.qdrant.health_check()
+            await state.qdrant.info()
         else:
             qdrant_status = "not_initialized"
     except Exception:
