@@ -105,19 +105,27 @@ def _build_embedding_text(
 
 
 def _build_query_text(
-    brand: str,
-    model: str,
+    brand: Optional[str] = None,
+    model: Optional[str] = None,
     year: Optional[int] = None,
     engine_code: Optional[str] = None,
     engine_volume: Optional[float] = None,
 ) -> str:
-    parts = [f"Масло для {brand} {model}"]
+    parts = []
+    if brand and model:
+        parts.append(f"Масло для {brand} {model}")
+    elif brand:
+        parts.append(f"Масло для {brand}")
+    elif model:
+        parts.append(f"Масло для модели {model}")
+    else:
+        parts.append("Рекомендуемое моторное масло")
     if engine_code:
-        parts.append(engine_code)
+        parts.append(f"двигатель {engine_code}")
     if engine_volume:
-        parts.append(f"{engine_volume}L")
+        parts.append(f"объём {engine_volume} литра")
     if year:
-        parts.append(f"{year} года")
+        parts.append(f"{year} года выпуска")
     return ". ".join(parts)
 
 

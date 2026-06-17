@@ -1,15 +1,21 @@
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CarSearchSchema(BaseModel):
-    brand: str = Field(..., min_length=1, description="Марка автомобиля")
-    model: str = Field(..., min_length=1, description="Модель автомобиля")
+    brand: Optional[str] = Field(None, min_length=1, description="Марка автомобиля")
+    model: Optional[str] = Field(None, min_length=1, description="Модель автомобиля")
     year: Optional[int] = Field(None, ge=1960, le=2030, description="Год выпуска")
     engine_code: Optional[str] = Field(None, max_length=50, description="Код двигателя")
     engine_volume: Optional[float] = Field(None, gt=0, description="Объём двигателя, л")
+
+    @model_validator(mode='after')
+    def validate_at_least_one_field(self) -> "CarSearchSchema":
+        if not any([self.brand, self.model, self.year, self.engine_code]):
+            raise ValueError("Необходимо указать хотя бы один параметр поиска (марка, модель, год или код двигателя)")
+        return self
 
 
 class FluidSearchResult(BaseModel):

@@ -41,12 +41,10 @@ async def _search_exact_sql(
     tenant_id: UUID,
     db: AsyncSession,
 ) -> Optional[SearchResponse]:
-    """Ищет рекомендации точным совпадением brand → model → variant."""
-
-    brand_stmt = select(CarBrand).where(
-        CarBrand.company_id == tenant_id,
-        CarBrand.name_ru.ilike(params.brand),
-    )
+    """Ищет рекомендации гибким поиском по указанным параметрам."""
+    brand_stmt = select(CarBrand).where(CarBrand.company_id == tenant_id)
+    if params.brand:
+        brand_stmt = brand_stmt.where(CarBrand.name_ru.ilike(f"%{params.brand}%"))
     brand_result = await db.execute(brand_stmt)
     brand = brand_result.scalars().first()
     if not brand:
@@ -55,8 +53,9 @@ async def _search_exact_sql(
     model_stmt = select(CarModel).where(
         CarModel.company_id == tenant_id,
         CarModel.brand_id == brand.id,
-        CarModel.name.ilike(params.model),
     )
+    if params.model:
+        model_stmt = model_stmt.where(CarModel.name.ilike(f"%{params.model}%"))
     if params.year:
         model_stmt = model_stmt.where(
             (CarModel.year_start.is_(None) | (CarModel.year_start <= params.year)),
@@ -73,42 +72,45 @@ async def _search_exact_sql(
     )
     if params.engine_code:
         variant_stmt = variant_stmt.where(
-            CarVariant.engine_code.ilike(params.engine_code)
+            CarVariant.engine_code.ilike(f"%{params.engine_code}%")
         )
     if params.engine_volume:
         variant_stmt = variant_stmt.where(
             CarVariant.engine_volume == params.engine_volume
         )
     variant_result = await db.execute(variant_stmt)
-    variant = variant_result.scalars().first()
-    if not variant:
+    variants = variant_result.scalars().all()
+    if not variants:
         return None
 
-    rec_stmt = (
-        select(Recommendation)
-        .options(joinedload(Recommendation.fluid))
-        .where(
-            Recommendation.company_id == tenant_id,
-            Recommendation.car_variant_id == variant.id,
+    all_recs: list[Recommendation] = []
+    for variant in variants:
+        rec_stmt = (
+            select(Recommendation)
+            .options(joinedload(Recommendation.fluid))
+            .where(
+                Recommendation.company_id == tenant_id,
+                Recommendation.car_variant_id == variant.id,
+            )
         )
-    )
-    rec_result = await db.execute(rec_stmt)
-    recs: list[Recommendation] = list(rec_result.unique().scalars().all())
+        rec_result = await db.execute(rec_stmt)
+        all_recs.extend(rec_result.unique().scalars().all())
 
-    if not recs:
+    if not all_recs:
         return None
 
-    groups = _group_by_node(recs)
+    groups = _group_by_node(all_recs)
 
+    first_variant = variants[0]
     return SearchResponse(
         found_by="exact_sql",
-        variant_id=variant.id,
+        variant_id=first_variant.id,
         brand=brand.name_ru,
         model=car_model.name,
-        engine_code=variant.engine_code,
-        engine_volume=variant.engine_volume,
-        year_start=variant.year_start,
-        year_end=variant.year_end,
+        engine_code=first_variant.engine_code,
+        engine_volume=first_variant.engine_volume,
+        year_start=first_variant.year_start,
+        year_end=first_variant.year_end,
         groups=groups,
     )
 
@@ -143,6 +145,9 @@ async def _search_semantic_qdrant(
         engine_code=params.engine_code,
         engine_volume=params.engine_volume,
     )
+    if not query_text or query_text.strip() == "":
+        logger.warning("Не удалось сформировать запрос для Qdrant")
+        return None
 
     model = get_embedding_model()
     query_vector = model.encode(query_text).tolist()
