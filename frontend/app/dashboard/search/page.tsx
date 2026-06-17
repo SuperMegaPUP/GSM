@@ -402,6 +402,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [activeNodeTab, setActiveNodeTab] = useState<string>("ENGINE");
 
   const handleSearch = async (params: Record<string, string | number>) => {
     setLoading(true);
@@ -510,10 +511,13 @@ export default function SearchPage() {
                 <p className="text-sm font-medium">Найдено {results.models.length} моделей {results.brand}:</p>
                 
                 {results.models.length <= 10 ? (
-                  <Tabs value={selectedModel || results.models[0]?.name} onValueChange={setSelectedModel}>
+                  <Tabs value={selectedModel || results.models[0]?.name} onValueChange={(val) => {
+                    setSelectedModel(val);
+                    setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
+                  }}>
                     <TabsList className="flex flex-wrap gap-2">
                       {results.models.map((m) => (
-                        <TabsTrigger key={m.name} value={m.name} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">
+                        <TabsTrigger key={`model-${m.name}`} value={m.name} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">
                           {m.name} ({m.variants_count})
                         </TabsTrigger>
                       ))}
@@ -521,13 +525,16 @@ export default function SearchPage() {
                   </Tabs>
                 ) : (
                   <div className="space-y-2">
-                    <Select value={selectedModel || results.models[0]?.name} onValueChange={setSelectedModel}>
+                    <Select value={selectedModel || results.models[0]?.name} onValueChange={(val) => {
+                      setSelectedModel(val);
+                      setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
+                    }}>
                       <SelectTrigger className="w-full sm:w-80">
                         <SelectValue placeholder="Выберите модель" />
                       </SelectTrigger>
                       <SelectContent>
                         {results.models.map((m) => (
-                          <SelectItem key={m.name} value={m.name}>
+                          <SelectItem key={`select-${m.name}`} value={m.name}>
                             {m.name} ({m.variants_count} вариантов)
                           </SelectItem>
                         ))}
@@ -543,7 +550,7 @@ export default function SearchPage() {
           )}
 
           {/* Вкладки по узлам */}
-          <Tabs defaultValue={results.groups[0]?.node_type || ""}>
+          <Tabs value={activeNodeTab} onValueChange={setActiveNodeTab}>
             <TabsList className="flex flex-wrap gap-2">
               {results.groups.map((group) => {
                 const tabInfo = NODE_TABS[group.node_type] || {
@@ -552,7 +559,7 @@ export default function SearchPage() {
                 };
                 return (
                   <TabsTrigger
-                    key={group.node_type}
+                    key={`node-${group.node_type}`}
                     value={group.node_type}
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
@@ -563,7 +570,7 @@ export default function SearchPage() {
             </TabsList>
 
             {results.groups.map((group) => (
-              <TabsContent key={group.node_type} value={group.node_type}>
+              <TabsContent key={`content-${group.node_type}`} value={group.node_type}>
                 <div className="space-y-4 mt-4">
                   <p className="text-sm text-muted-foreground">
                     {group.node_label}: найдено {group.recommendations.length}{" "}
