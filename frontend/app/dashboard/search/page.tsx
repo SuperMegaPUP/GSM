@@ -399,12 +399,30 @@ export default function SearchPage() {
     try {
       const response = await api.post<SearchResponse>("/search/oils", params);
       setResults(response.data);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } }; message?: string };
-      const message =
-        axiosErr.response?.data?.detail ||
-        axiosErr.message ||
-        "Ошибка при поиске масел";
+} catch (err: unknown) {
+      const axiosErr = err as any;
+      // Пытаемся достать detail из разных источников (axios меняет структуру при интерцепторе)
+      const detail =
+        axiosErr?.response?.data?.detail ??
+        axiosErr?.response?.data?.error ??
+        axiosErr?.detail ??
+        axiosErr?.error;
+      let message: string;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((d: any) => d.msg || d.detail || String(d))
+          .join("; ");
+      } else if (detail && typeof detail === "object") {
+        message = detail.msg || detail.detail || JSON.stringify(detail);
+      } else {
+        message = axiosErr?.message || "Ошибка при поиске масел";
+      }
+      // Гарантируем, что message — строка (не объект!)
+      if (typeof message !== "string") {
+        message = String(message);
+      }
       setError(message);
       toast.error(message);
     } finally {

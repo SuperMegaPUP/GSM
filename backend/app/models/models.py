@@ -175,7 +175,7 @@ class CarVariant(Base, TimestampMixin, TenantAwareMixin):
     year_start: Mapped[Optional[int]]
     year_end: Mapped[Optional[int]]
     source_hash: Mapped[Optional[str]] = mapped_column(
-        String(64), unique=True
+        String(64)
     )
 
     # Связи
@@ -216,7 +216,7 @@ class Fluid(Base, TimestampMixin, TenantAwareMixin):
         default=FluidType.engine_oil,
     )
     hash_signature: Mapped[Optional[str]] = mapped_column(
-        String(64), unique=True, comment="Хэш для дедупликации"
+        String(64), comment="Хэш для дедупликации"
     )
 
     # Связи

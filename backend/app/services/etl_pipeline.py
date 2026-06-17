@@ -74,7 +74,7 @@ async def _upsert_variant(
                 (company_id, model_id, engine_code, engine_volume, body_type,
                  year_start, year_end, source_hash)
             VALUES (:tid, :mid, :ec, :ev, :bt, :ys, :ye, :sh)
-            ON CONFLICT (source_hash) DO UPDATE SET
+            ON CONFLICT (company_id, source_hash) DO UPDATE SET
                 model_id = EXCLUDED.model_id,
                 engine_code = EXCLUDED.engine_code,
                 engine_volume = EXCLUDED.engine_volume,

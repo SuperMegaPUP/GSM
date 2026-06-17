@@ -24,10 +24,38 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 401 — перенаправляем на логин
     if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("access_token");
       window.location.href = "/login";
     }
+
+    // Нормализация ошибок: превращаем объект в строку
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail;
+      let message: string;
+
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        // Pydantic возвращает [{type, loc, msg, input}]
+        message = detail
+          .map((err: any) => {
+            const field = err.loc?.slice(-1)[0] || "поле";
+            return `${field}: ${err.msg}`;
+          })
+          .join("; ");
+      } else if (typeof detail === "object" && detail !== null) {
+        message = detail.msg || detail.detail || JSON.stringify(detail);
+      } else {
+        message = String(detail);
+      }
+
+      error.message = message;
+    } else if (!error.message) {
+      error.message = "Произошла ошибка";
+    }
+
     return Promise.reject(error);
   },
 );
