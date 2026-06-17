@@ -9,6 +9,8 @@ from redis import asyncio as aioredis
 
 from app.core.config import settings
 from app.core.database import engine, async_session, text
+from app.core.minio_client import ensure_bucket_exists
+from app.routers import auth, imports
 
 
 # =============================================================
@@ -30,20 +32,19 @@ state = AppState()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / Shutdown."""
-    # Startup
     state.started_at = datetime.utcnow()
     state.redis = aioredis.from_url(
         settings.redis_url, decode_responses=True
     )
     state.qdrant = AsyncQdrantClient(url=settings.qdrant_url)
 
-    # Проверяем подключение к БД
     async with async_session() as session:
         await session.execute(text("SELECT 1"))
 
+    await ensure_bucket_exists()
+
     yield
 
-    # Shutdown
     if state.redis:
         await state.redis.close()
     if state.qdrant:
@@ -78,6 +79,15 @@ class HealthResponse(BaseModel):
     database: str
     redis: str
     qdrant: str
+    minio: str
+
+
+# =============================================================
+# Роутеры
+# =============================================================
+
+app.include_router(auth.router)
+app.include_router(imports.router)
 
 
 # =============================================================
@@ -117,6 +127,15 @@ async def health_check():
     except Exception:
         qdrant_status = "error"
 
+    # Проверка MinIO
+    minio_status = "ok"
+    try:
+        from app.core.minio_client import minio_client
+        import asyncio
+        await asyncio.to_thread(minio_client.bucket_exists, "excel-imports")
+    except Exception:
+        minio_status = "error"
+
     return HealthResponse(
         status="healthy" if db_status == "ok" else "degraded",
         version="0.1.0",
@@ -124,6 +143,7 @@ async def health_check():
         database=db_status,
         redis=redis_status,
         qdrant=qdrant_status,
+        minio=minio_status,
     )
 
 

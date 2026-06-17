@@ -116,6 +116,42 @@ services:
       - ./app:/app/app
     logging: *default-logging
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oil-celery-worker
+    restart: unless-stopped
+    environment:
+      APP_NAME: "Oil Expert SaaS MVP"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-oiluser}
+      DB_PASSWORD: ${DB_PASSWORD:-oilpass}
+      DB_NAME: ${DB_NAME:-oil_saas}
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: uploads
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-in-prod}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:14b}
+      DEBUG: ${DEBUG:-false}
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    volumes:
+      - ./app:/app/app
+    logging: *default-logging
+
   nginx:
     image: nginx:alpine
     container_name: oil-nginx
