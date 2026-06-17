@@ -34,10 +34,13 @@ async def search_oils(
             db=session,
             qdrant=qdrant,
         )
-    except NotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
+    except NotFoundError:
+        # Возвращаем пустой результат вместо 404 — фронтенд показывает empty state
+        return SearchResponse(
+            found_by="none",
+            brand=body.brand or "",
+            model=body.model or "",
+            groups=[],
         )
 
     return result
