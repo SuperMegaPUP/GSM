@@ -1,6 +1,6 @@
 # BACKLOG.md — Бэклог проекта GSM
 
-## Статус: Этап 1 (Инфраструктура) — ВЫПОЛНЕН
+## Статус: Этап 2 (SQLAlchemy модели + Pydantic схемы) — ВЫПОЛНЕН
 
 ---
 
@@ -27,9 +27,9 @@
 
 ## Этап 2: SQLAlchemy модели и Pydantic схемы (3 дня)
 
-- [ ] 2.1: Модели ORM — `app/models/__init__.py`, `app/models/company.py`, `app/models/user.py`, `app/models/car.py`, `app/models/fluid.py`, `app/models/recommendation.py`
-- [ ] 2.2: Pydantic схемы — `app/schemas/auth.py`, `app/schemas/catalog.py`, `app/schemas/etl.py`
-- [ ] 2.3: Alembic — инициализация, первая миграция (sync с init.sql)
+- [x] 2.1: Модели ORM — `app/models/models.py` (9 моделей в одном файле)
+- [x] 2.2: Pydantic схемы — `app/schemas/schemas.py` (Auth + Catalog), `app/schemas/etl_schemas.py` (ETL)
+- [ ] 2.3: Alembic — инициализация, первая миграция (sync с init.sql) — перенесено на этап 3
 
 **Промпт для LLM (скопировать):**
 ```

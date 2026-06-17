@@ -16,3 +16,21 @@
 - 100% Open Source стек, без проприетарных лицензий
 
 **Следующий шаг:** Этап 2 — SQLAlchemy модели + Pydantic схемы
+
+---
+
+## Сессия 2 — 2026-06-17
+
+**Что сделано:**
+- Созданы SQLAlchemy 2.0 async-модели (9 таблиц) с полной типизацией
+- Созданы 5 Python-ENUM классов (UserRole, FluidType, NodeType, SubscriptionStatus, ImportStatus)
+- Созданы Pydantic V2 схемы для API (Auth, Catalog, ETL)
+- Добавлен TenantAwareMixin для единообразной изоляции данных
+- ruff + py_compile пройдены, код запушен
+
+**Решения:**
+- TimestampMixin остаётся в `database.py` для переиспользования
+- TenantAwareMixin добавлен в `models.py` — добавляет `id` + `company_id` всем tenant-таблицам
+- Все Fluid-схемы используют `oem_approvals: list` — JSONB массив строк
+
+**Следующий шаг:** Этап 3 — Backend API (Auth, JWT, мультитенантность)

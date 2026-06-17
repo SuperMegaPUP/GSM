@@ -1,11 +1,11 @@
 # SNAPSHOT.md — Текущее состояние проекта
 
 **Дата:** 2026-06-17
-**Статус:** Этап 1 (Инфраструктура) — ЗАВЕРШЁН
+**Статус:** Этап 2 (SQLAlchemy модели + Pydantic схемы) — ВЫПОЛНЕН
 
 ## Что сделано
 
-### Backend
+### Backend (скелет)
 - [x] `docker-compose.yml` — 6 сервисов, volumes, healthcheck, логи
 - [x] `Dockerfile` — multi-stage, non-root, healthcheck
 - [x] `requirements.txt` — 24 зависимости
@@ -15,7 +15,13 @@
 - [x] `app/main.py` — FastAPI app + healthcheck (БД, Redis, Qdrant)
 - [x] `app/core/config.py` — Pydantic Settings
 - [x] `app/core/database.py` — SQLAlchemy async engine + RLS (do_orm_execute + PostgreSQL RLS)
-- [x] Все `.py` проверены: `py_compile` OK
+
+### Backend (модели + схемы) ✅ Этап 2
+- [x] `app/models/models.py` — 9 SQLAlchemy 2.0 моделей (Company, User, CarBrand, CarModel, CarVariant, Fluid, Recommendation, ImportBatch, StagingRow)
+- [x] `app/schemas/schemas.py` — 12 Pydantic V2 схем (Auth + Catalog)
+- [x] `app/schemas/etl_schemas.py` — 3 Pydantic схемы (RawExcelRow, NormalizedFluid, ImportBatchResponse)
+- [x] 5 Python-ENUM классов (UserRole, FluidType, NodeType, SubscriptionStatus, ImportStatus)
+- [x] TenantAwareMixin — единообразная изоляция tenant-таблиц
 
 ### Контекст проекта
 - [x] `context/RULES.md` — Конституция проекта
@@ -45,6 +51,13 @@
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   └── models.py          # 9 ORM-моделей + 5 ENUMs
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   ├── schemas.py         # Pydantic: Auth + Catalog
+│   │   │   └── etl_schemas.py    # Pydantic: ETL/Excel
 │   │   └── core/
 │   │       ├── __init__.py
 │   │       ├── config.py
@@ -70,12 +83,14 @@
 │   ├── start-session.sh
 │   └── update-docs.sh
 ├── .gitignore
-└── .pre-commit-config.yaml
+├── .pre-commit-config.yaml
+└── .opencode/
+    └── plans/step2-models-schemas.md
 ```
 
 ## Следующая задача
 
-**Этап 2: SQLAlchemy модели + Pydantic схемы**
-- Создать `app/models/` с ORM-моделями
-- Создать `app/schemas/` с Pydantic-схемами
-- Инициализировать Alembic
+**Этап 3: Backend API (Auth, JWT, мультитенантность)**
+- Реализовать Auth: регистрация/логин, JWT, зависимость get_current_user
+- Реализовать Middleware: get_tenant_db_session, tenant isolation
+- Создать CRUD для справочников
