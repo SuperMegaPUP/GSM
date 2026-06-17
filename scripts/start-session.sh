@@ -12,7 +12,7 @@ cd "$PROJECT_ROOT"
 
 echo "[1/5] Git status (последние 5 коммитов)"
 echo "───────────────────────────────────────────────"
-if git rev-parse --is-inside-work-tree 2>/dev/null; then
+if git rev-parse --is-inside-work-tree 2>/dev/null 1>&2; then
     git log --oneline -5 2>/dev/null || echo "  (нет коммитов)"
     echo ""
     echo "  Неотслеживаемые / изменённые файлы:"
@@ -24,8 +24,8 @@ fi
 echo ""
 echo "[2/5] Docker Compose"
 echo "───────────────────────────────────────────────"
-if [ -f docker-compose.yml ]; then
-    docker compose ps 2>/dev/null || echo "  (контейнеры не запущены)"
+if [ -f backend/docker-compose.yml ]; then
+    cd backend && docker compose ps 2>/dev/null || echo "  (контейнеры не запущены)" && cd "$PROJECT_ROOT"
 else
     echo "  (docker-compose.yml не найден)"
 fi
@@ -60,7 +60,7 @@ echo ""
 echo "[5/5] Последний SNAPSHOT"
 echo "───────────────────────────────────────────────"
 if [ -f context/SNAPSHOT.md ]; then
-    grep -m 3 "^##\|^Status\|^Статус" context/SNAPSHOT.md || true
+    head -8 context/SNAPSHOT.md || true
 fi
 
 echo ""
