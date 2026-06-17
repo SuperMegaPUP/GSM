@@ -41,7 +41,11 @@ async def _search_exact_sql(
     tenant_id: UUID,
     db: AsyncSession,
 ) -> Optional[SearchResponse]:
-    """Ищет рекомендации гибким поиском по указанным параметрам."""
+    """Ищет рекомендации гибким поиском по указанным параметрам.
+    
+    Если модель не указана — ищет по ВСЕМ моделям бренда.
+    Если модель указана — ищет только по конкретной модели.
+    """
     brand_stmt = select(CarBrand).where(CarBrand.company_id == tenant_id)
     if params.brand:
         brand_stmt = brand_stmt.where(CarBrand.name_ru.ilike(f"%{params.brand}%"))
@@ -50,6 +54,7 @@ async def _search_exact_sql(
     if not brand:
         return None
 
+    # Собираем все подходящие модели
     model_stmt = select(CarModel).where(
         CarModel.company_id == tenant_id,
         CarModel.brand_id == brand.id,
@@ -62,32 +67,32 @@ async def _search_exact_sql(
             (CarModel.year_end.is_(None) | (CarModel.year_end >= params.year)),
         )
     model_result = await db.execute(model_stmt)
-    car_model = model_result.scalars().first()
-    if not car_model:
+    car_models = model_result.scalars().all()
+    if not car_models:
         return None
 
-    variant_stmt = select(CarVariant).where(
-        CarVariant.company_id == tenant_id,
-        CarVariant.model_id == car_model.id,
-    )
-    if params.engine_code:
-        variant_stmt = variant_stmt.where(
-            CarVariant.engine_code.ilike(f"%{params.engine_code}%")
-        )
-    if params.engine_volume:
-        variant_stmt = variant_stmt.where(
-            CarVariant.engine_volume == params.engine_volume
-        )
-    variant_result = await db.execute(variant_stmt)
-    variants = variant_result.scalars().all()
-    if not variants:
-        return None
-
+    # Собираем все варианты для всех найденных моделей
     all_recs: list[Recommendation] = []
-    for variant in variants:
-        rec_stmt = (
-            select(Recommendation)
-            .options(joinedload(Recommendation.fluid))
+    for car_model in car_models:
+        variant_stmt = select(CarVariant).where(
+            CarVariant.company_id == tenant_id,
+            CarVariant.model_id == car_model.id,
+        )
+        if params.engine_code:
+            variant_stmt = variant_stmt.where(
+                CarVariant.engine_code.ilike(f"%{params.engine_code}%")
+            )
+        if params.engine_volume:
+            variant_stmt = variant_stmt.where(
+                CarVariant.engine_volume == params.engine_volume
+            )
+        variant_result = await db.execute(variant_stmt)
+        variants = variant_result.scalars().all()
+        
+        for variant in variants:
+            rec_stmt = (
+                select(Recommendation)
+                .options(joinedload(Recommendation.fluid))
             .where(
                 Recommendation.company_id == tenant_id,
                 Recommendation.car_variant_id == variant.id,
@@ -101,16 +106,24 @@ async def _search_exact_sql(
 
     groups = _group_by_node(all_recs)
 
-    first_variant = variants[0]
+    # Берём первую модель и первый вариант для отображения в заголовке
+    first_model = car_models[0]
+    first_variant_stmt = select(CarVariant).where(
+        CarVariant.company_id == tenant_id,
+        CarVariant.model_id == first_model.id,
+    ).limit(1)
+    first_variant_result = await db.execute(first_variant_stmt)
+    first_variant = first_variant_result.scalars().first()
+
     return SearchResponse(
         found_by="exact_sql",
-        variant_id=first_variant.id,
+        variant_id=first_variant.id if first_variant else None,
         brand=brand.name_ru,
-        model=car_model.name,
-        engine_code=first_variant.engine_code,
-        engine_volume=first_variant.engine_volume,
-        year_start=first_variant.year_start,
-        year_end=first_variant.year_end,
+        model=first_model.name,
+        engine_code=first_variant.engine_code if first_variant else None,
+        engine_volume=first_variant.engine_volume if first_variant else None,
+        year_start=first_model.year_start,
+        year_end=first_model.year_end,
         groups=groups,
     )
 
