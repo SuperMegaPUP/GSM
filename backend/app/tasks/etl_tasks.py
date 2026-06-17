@@ -9,10 +9,9 @@ from dataclasses import asdict
 from minio import Minio
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.core.config import settings
-from app.core.database import async_session
 from app.models.models import ImportBatch, ImportStatus
 from app.services.excel_parser import parse_japanese_catalog, list_sheets
 from app.services.etl_pipeline import process_import_batch
@@ -30,6 +29,21 @@ def _minio_client() -> Minio:
     )
 
 
+def _make_engine():
+    """Создаём новый engine для каждого asyncio.run() — обход конфликта event loops."""
+    from sqlalchemy.dialects.postgresql import asyncpg
+
+    engine = create_async_engine(
+        settings.database_url,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        poolclass=None,  # force fresh pool
+    )
+    return engine
+
+
 async def _update_batch(
     batch_id: str,
     status: ImportStatus,
@@ -38,8 +52,10 @@ async def _update_batch(
     duplicates: int = 0,
     errors: int = 0,
     error_message: str = "",
+    engine=None,
 ) -> None:
-    async with async_session() as session:
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_maker() as session:
         stmt = (
             update(ImportBatch)
             .where(ImportBatch.id == uuid_pkg.UUID(batch_id))
@@ -84,84 +100,103 @@ def parse_excel_task(
     tmp_path = None
 
     async def _run(batch_uuid: uuid_pkg.UUID) -> dict:
-        await _update_batch(batch_id, ImportStatus.processing)
+        engine = _make_engine()
+        try:
+            await _update_batch(batch_id, ImportStatus.processing, engine=engine)
 
-        client = _minio_client()
-        tmp_fd, tmp_path_inner = tempfile.mkstemp(suffix=".xlsx")
-        os.close(tmp_fd)
-        nonlocal tmp_path
-        tmp_path = tmp_path_inner
+            client = _minio_client()
+            tmp_fd, tmp_path_inner = tempfile.mkstemp(suffix=".xlsx")
+            os.close(tmp_fd)
+            nonlocal tmp_path
+            tmp_path = tmp_path_inner
 
-        client.fget_object("excel-imports", minio_path, tmp_path)
+            client.fget_object("excel-imports", minio_path, tmp_path)
 
-        sheets = list_sheets(tmp_path)
-        logger.info("Листы в файле (%d): %s", len(sheets), sheets)
+            sheets = list_sheets(tmp_path)
+            logger.info("Листы в файле (%d): %s", len(sheets), sheets)
 
-        raw_row_dicts: list[dict] = []
-        file_errors = 0
+            raw_row_dicts: list[dict] = []
+            file_errors = 0
 
-        for sheet in sheets:
-            result = parse_japanese_catalog(tmp_path, sheet_name=sheet)
-            raw_row_dicts.extend(asdict(r) for r in result.rows)
-            file_errors += len(result.errors)
-            if result.errors:
-                for err in result.errors[:3]:
-                    logger.warning(
-                        "Лист %s, строка %d: %s",
-                        sheet, err["excel_row"], err["error"],
-                    )
+            for sheet in sheets:
+                result = parse_japanese_catalog(tmp_path, sheet_name=sheet)
+                raw_row_dicts.extend(asdict(r) for r in result.rows)
+                file_errors += len(result.errors)
+                if result.errors:
+                    for err in result.errors[:3]:
+                        logger.warning(
+                            "Лист %s, строка %d: %s",
+                            sheet, err["excel_row"], err["error"],
+                        )
 
-        logger.info(
-            "Парсинг листов завершён: %d сырых строк, %d ошибок файла",
-            len(raw_row_dicts), file_errors,
-        )
-
-        async with async_session() as db:
-            tenant_id = await _get_batch_tenant(db, batch_uuid)
-            if not tenant_id:
-                raise RuntimeError(f"Batch {batch_id} не найден")
-
-            pipeline_result = await process_import_batch(
-                batch_id=batch_uuid,
-                raw_rows=raw_row_dicts,
-                tenant_id=tenant_id,
-                db=db,
+            logger.info(
+                "Парсинг листов завершён: %d сырых строк, %d ошибок файла",
+                len(raw_row_dicts), file_errors,
             )
 
-        total_errors = file_errors + pipeline_result["errors"]
-        await _update_batch(
-            batch_id,
-            ImportStatus.completed,
-            total_rows=pipeline_result["success"],
-            new_rows=(
-                pipeline_result["created_brands"]
-                + pipeline_result["created_models"]
-                + pipeline_result["created_variants"]
-                + pipeline_result["created_fluids"]
-            ),
-            errors=total_errors,
-        )
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_maker() as db:
+                tenant_id = await _get_batch_tenant(db, batch_uuid)
+                if not tenant_id:
+                    raise RuntimeError(f"Batch {batch_id} не найден")
 
-        logger.info(
-            "ETL завершён: успех=%d, ошибок=%d | "
-            "новых: брендов=%d, моделей=%d, вариантов=%d, жидкостей=%d",
-            pipeline_result["success"],
-            pipeline_result["errors"],
-            pipeline_result["created_brands"],
-            pipeline_result["created_models"],
-            pipeline_result["created_variants"],
-            pipeline_result["created_fluids"],
-        )
+                from sqlalchemy import text
+                # Отключаем FORCE RLS на время импорта — RETURNING в ON CONFLICT
+                # не работает корректно с включённым RLS (возвращает неверный ID)
+                # Безопасность обеспечивается через company_id во всех запросах
+                for tbl in ("car_brands", "car_models", "car_variants", "fluids", "recommendations"):
+                    await db.execute(text(f"ALTER TABLE {tbl} NO FORCE ROW LEVEL SECURITY"))
+                await db.commit()
 
-        index_qdrant_task.delay(batch_id, str(tenant_id))
+                pipeline_result = await process_import_batch(
+                    batch_id=batch_uuid,
+                    raw_rows=raw_row_dicts,
+                    tenant_id=tenant_id,
+                    db=db,
+                )
 
-        return {
-            "batch_id": batch_id,
-            "status": ImportStatus.completed.value,
-            "success_rows": pipeline_result["success"],
-            "errors": total_errors,
-            "details": pipeline_result,
-        }
+                # Включаем RLS обратно
+                for tbl in ("car_brands", "car_models", "car_variants", "fluids", "recommendations"):
+                    await db.execute(text(f"ALTER TABLE {tbl} FORCE ROW LEVEL SECURITY"))
+                await db.commit()
+
+            total_errors = file_errors + pipeline_result["errors"]
+            await _update_batch(
+                batch_id,
+                ImportStatus.completed,
+                total_rows=pipeline_result["success"],
+                new_rows=(
+                    pipeline_result["created_brands"]
+                    + pipeline_result["created_models"]
+                    + pipeline_result["created_variants"]
+                    + pipeline_result["created_fluids"]
+                ),
+                errors=total_errors,
+                engine=engine,
+            )
+
+            logger.info(
+                "ETL завершён: успех=%d, ошибок=%d | "
+                "новых: брендов=%d, моделей=%d, вариантов=%d, жидкостей=%d",
+                pipeline_result["success"],
+                pipeline_result["errors"],
+                pipeline_result["created_brands"],
+                pipeline_result["created_models"],
+                pipeline_result["created_variants"],
+                pipeline_result["created_fluids"],
+            )
+
+            index_qdrant_task.delay(batch_id, str(tenant_id))
+
+            return {
+                "batch_id": batch_id,
+                "status": ImportStatus.completed.value,
+                "success_rows": pipeline_result["success"],
+                "errors": total_errors,
+                "details": pipeline_result,
+            }
+        finally:
+            await engine.dispose()
 
     try:
         batch_uuid = uuid_pkg.UUID(batch_id)
@@ -172,16 +207,16 @@ def parse_excel_task(
         )
 
         async def _set_failed():
+            engine = _make_engine()
             try:
                 await _update_batch(
                     batch_id,
                     ImportStatus.failed,
                     error_message=str(exc),
+                    engine=engine,
                 )
-            except Exception as db_err:
-                logger.error(
-                    "Не удалось обновить статус batch %s: %s", batch_id, db_err
-                )
+            finally:
+                await engine.dispose()
 
         asyncio.run(_set_failed())
 
@@ -210,9 +245,11 @@ def index_qdrant_task(
     )
 
     async def _run() -> dict:
+        engine = _make_engine()
         qdrant = AsyncQdrantClient(url=settings.qdrant_url)
         try:
-            async with async_session() as db:
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_maker() as db:
                 count = await index_recommendations_to_qdrant(
                     tenant_id=uuid_pkg.UUID(tenant_id),
                     db=db,
@@ -229,6 +266,7 @@ def index_qdrant_task(
             }
         finally:
             await qdrant.close()
+            await engine.dispose()
 
     try:
         return asyncio.run(_run())

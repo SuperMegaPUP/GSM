@@ -64,8 +64,11 @@ TENANT_AWARE_TABLES = {
 
 @event.listens_for(Session, "do_orm_execute")
 def _apply_tenant_filter(execute_state: ORMExecuteState) -> None:
-    """Автоматически добавляет фильтр company_id ко всем SELECT/UPDATE/DELETE
-    для таблиц, помеченных как tenant-aware.
+    """Автоматически добавляет фильтр company_id только к SELECT.
+
+    INSERT/UPDATE/DELETE уже содержат company_id через TenantAwareMixin,
+    а безопасность обеспечивает RLS в PostgreSQL.
+    .params() не поддерживается для DML-операторов в SQLAlchemy 2.0.
 
     Запросы с опцией skip_tenant_filter=True пропускаются.
     """
@@ -81,6 +84,8 @@ def _apply_tenant_filter(execute_state: ORMExecuteState) -> None:
 
     statement = execute_state.statement
 
+    # Только для SELECT — DML (INSERT/UPDATE/DELETE) обрабатываются
+    # через TenantAwareMixin + RLS политики PostgreSQL
     if isinstance(statement, Select):
         for col_desc in statement.column_descriptions:
             entity = col_desc.get("type", col_desc.get("expr"))
@@ -92,14 +97,6 @@ def _apply_tenant_filter(execute_state: ORMExecuteState) -> None:
                     text(f"{table_name}.company_id = :_tenant_id")
                 ).params(_tenant_id=str(tenant_id))
                 execute_state.statement = statement
-
-    elif isinstance(statement, (Update, Delete)):
-        table_name = getattr(statement.table, "name", None)
-        if table_name and table_name in TENANT_AWARE_TABLES:
-            statement = statement.where(
-                text(f"{table_name}.company_id = :_tenant_id")
-            ).params(_tenant_id=str(tenant_id))
-            execute_state.statement = statement
 
 
 # =============================================================

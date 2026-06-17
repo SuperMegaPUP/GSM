@@ -171,9 +171,11 @@ function MobileSidebar() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
           render={
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <span>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </span>
           }
         />
       <SheetContent side="left" className="w-64 p-0">
@@ -267,13 +269,15 @@ function TopNav({ onToggle }: { collapsed?: boolean; onToggle: () => void }) {
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="ghost" className="flex items-center gap-2 px-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                  </Avatar>
-                  <span className="hidden text-sm sm:inline">{user.full_name}</span>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </Button>
+                <span>
+                  <Button variant="ghost" className="flex items-center gap-2 px-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                    </Avatar>
+                    <span className="hidden text-sm sm:inline">{user.full_name}</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </span>
               }
             />
             <DropdownMenuContent align="end" className="w-48">

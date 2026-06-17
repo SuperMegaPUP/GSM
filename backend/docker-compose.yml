@@ -138,7 +138,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-http://192.168.31.192:1234/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:14b}
       DEBUG: ${DEBUG:-false}
-    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.core.celery_app worker --loglevel=warning --concurrency=2
     depends_on:
       postgres:
         condition: service_healthy

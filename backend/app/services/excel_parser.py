@@ -243,6 +243,14 @@ def parse_japanese_catalog(
         logger.warning("Лист '%s' не содержит распознаваемых идентификаторов — пропущен", sheet_name)
         return result
 
+    # Строим маппинг: индекс колонки → имя идентификатора
+    id_col_names = []
+    for ci in id_indices:
+        upper = str(filled_upper[ci]).strip()
+        lower = str(df.columns.get_level_values(1)[ci]).strip()
+        name = f"{upper}_{lower}".lower()
+        id_col_names.append((ci, name))
+
     limit = min(max_rows, len(df)) if max_rows else len(df)
 
     for idx in range(limit):
@@ -250,12 +258,30 @@ def parse_japanese_catalog(
         v = row.values
 
         try:
-            model = cleanse_value(v[0]) if len(v) > 0 else None
-            years = cleanse_value(v[1]) if len(v) > 1 else None
-            displacement = cleanse_value(v[2]) if len(v) > 2 else None
-            body = cleanse_value(v[3]) if len(v) > 3 else None
-            engine_code = cleanse_value(v[4]) if len(v) > 4 else None
-            transmission = cleanse_value(v[11]) if len(v) > 11 else None
+            # Динамически ищем идентификаторы по именам колонок
+            model = None
+            years = None
+            displacement = None
+            body = None
+            engine_code = None
+            transmission = None
+
+            for ci, name in id_col_names:
+                val = cleanse_value(v[ci]) if ci < len(v) else None
+                if not val:
+                    continue
+                if "модель" in name or "model" in name:
+                    model = val
+                elif "год" in name or "date" in name or "выпуска" in name:
+                    years = val
+                elif "объем" in name or "volume" in name or "рабочий" in name:
+                    displacement = val
+                elif "кузов" in name or "body" in name or "номер кузова" in name:
+                    body = val
+                elif "двигатель" in name or "engine" in name or "тип двигателя" in name:
+                    engine_code = val
+                elif "коробк" in name or "transmission" in name or "kpt" in name:
+                    transmission = val
 
             if not model:
                 result.skipped_rows += 1

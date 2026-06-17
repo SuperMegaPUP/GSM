@@ -47,17 +47,23 @@ _embedding_model = None
 def get_embedding_model():
     global _embedding_model
     if _embedding_model is None:
-        from sentence_transformers import SentenceTransformer
+        try:
+            from sentence_transformers import SentenceTransformer
 
-        _embedding_model = SentenceTransformer(
-            settings.embedding_model,
-            device="cpu",
-        )
-        logger.info(
-            "Модель эмбеддингов %s загружена (размерность %d)",
-            settings.embedding_model,
-            _embedding_model.get_sentence_embedding_dimension(),
-        )
+            _embedding_model = SentenceTransformer(
+                settings.embedding_model,
+                device="cpu",
+            )
+            logger.info(
+                "Модель эмбеддингов %s загружена (размерность %d)",
+                settings.embedding_model,
+                _embedding_model.get_sentence_embedding_dimension(),
+            )
+        except ImportError:
+            logger.warning(
+                "sentence_transformers не установлен — векторизация пропущена. "
+                "Установите: pip install sentence-transformers"
+            )
     return _embedding_model
 
 
@@ -169,6 +175,10 @@ async def index_recommendations_to_qdrant(
         return 0
 
     model = get_embedding_model()
+    if model is None:
+        logger.warning("Векторизация пропущена: модель эмбеддингов не доступна")
+        return 0
+
     points: list[PointStruct] = []
     batch_size = 100
 
