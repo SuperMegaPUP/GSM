@@ -285,7 +285,7 @@ INSERT INTO users (id, company_id, email, hashed_password, full_name, role) VALU
         '00000000-0000-0000-0000-000000000002',
         '00000000-0000-0000-0000-000000000001',
         'admin@oil-expert.ru',
-        '$2b$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0pPq1vS0w0Yx0hK0q0aO',
+        '$2b$12$Yl80no9IvJL49PvnUFJem.8gRp4Kok5nICd59c.O/IjqOTZmpAVVq',
         'Admin',
         'admin'
     );

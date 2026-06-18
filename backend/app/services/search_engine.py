@@ -187,7 +187,7 @@ async def _search_semantic_qdrant(
     if model is None:
         logger.warning("Модель эмбеддингов недоступна — семантический поиск пропущен")
         return None
-    query_vector = model.encode(query_text).tolist()
+    query_vector = list(model.embed([query_text]))[0].tolist()
 
     search_result = await qdrant.search(
         collection_name=collection,

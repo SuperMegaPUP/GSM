@@ -48,21 +48,19 @@ def get_embedding_model():
     global _embedding_model
     if _embedding_model is None:
         try:
-            from sentence_transformers import SentenceTransformer
+            from fastembed import TextEmbedding
 
-            _embedding_model = SentenceTransformer(
-                settings.embedding_model,
-                device="cpu",
+            _embedding_model = TextEmbedding(
+                model_name=settings.embedding_model,
             )
             logger.info(
-                "Модель эмбеддингов %s загружена (размерность %d)",
+                "Модель эмбеддингов %s загружена",
                 settings.embedding_model,
-                _embedding_model.get_sentence_embedding_dimension(),
             )
         except ImportError:
             logger.warning(
-                "sentence_transformers не установлен — векторизация пропущена. "
-                "Установите: pip install sentence-transformers"
+                "fastembed не установлен — векторизация пропущена. "
+                "Установите: pip install fastembed"
             )
     return _embedding_model
 
@@ -137,7 +135,7 @@ def _build_query_text(
 async def _ensure_collection(
     client: AsyncQdrantClient,
     collection: str,
-    vector_size: int,
+    vector_size: int = 384,
 ) -> None:
     existing = await client.get_collections()
     names = [c.name for c in existing.collections]
@@ -187,8 +185,8 @@ async def index_recommendations_to_qdrant(
         logger.warning("Векторизация пропущена: модель эмбеддингов не доступна")
         return 0
 
-    points: list[PointStruct] = []
-    batch_size = 100
+    texts: list[str] = []
+    point_data: list[tuple] = []
 
     for rec in recs:
         fluid = rec.fluid
@@ -208,36 +206,49 @@ async def index_recommendations_to_qdrant(
             oem_approvals=fluid.oem_approvals or [],
         )
 
-        points.append(
-            PointStruct(
-                id=str(rec.id),
-                vector=model.encode(text).tolist(),
-                payload={
-                    "tenant_id": str(tenant_id),
-                    "variant_id": str(variant.id),
-                    "fluid_id": str(fluid.id),
-                    "node_type": rec.node_type.value,
-                    "is_oem": rec.is_oem_recommendation,
-                    "brand_name": brand.name_ru,
-                    "model_name": car_model.name,
-                    "engine_code": variant.engine_code,
-                    "engine_volume": variant.engine_volume,
-                    "fluid_canonical_name": fluid.canonical_name,
-                    "fluid_brand": fluid.brand,
-                    "fluid_product_line": fluid.product_line,
-                    "fluid_type": fluid.fluid_type.value,
-                    "viscosity_sae": fluid.viscosity_sae,
-                    "api_class": fluid.api_class,
-                    "acea_class": fluid.acea_class,
-                    "oem_approvals": fluid.oem_approvals or [],
-                    "volume_liters": rec.volume_liters,
-                    "volume_with_filter": rec.volume_with_filter,
-                    "is_oem_recommendation": rec.is_oem_recommendation,
-                    "oem_specification": rec.oem_specification,
-                    "confidence_score": rec.confidence_score,
-                },
+        texts.append(text)
+        point_data.append((rec, fluid, variant, car_model, brand))
+
+    batch_size = 100
+    points: list[PointStruct] = []
+
+    for i in range(0, len(texts), batch_size):
+        batch_texts = texts[i : i + batch_size]
+        batch_data = point_data[i : i + batch_size]
+
+        embeddings = list(model.embed(batch_texts))
+
+        for (rec, fluid, variant, car_model, brand), embedding in zip(batch_data, embeddings):
+            points.append(
+                PointStruct(
+                    id=str(rec.id),
+                    vector=embedding.tolist(),
+                    payload={
+                        "tenant_id": str(tenant_id),
+                        "variant_id": str(variant.id),
+                        "fluid_id": str(fluid.id),
+                        "node_type": rec.node_type.value,
+                        "is_oem": rec.is_oem_recommendation,
+                        "brand_name": brand.name_ru,
+                        "model_name": car_model.name,
+                        "engine_code": variant.engine_code,
+                        "engine_volume": variant.engine_volume,
+                        "fluid_canonical_name": fluid.canonical_name,
+                        "fluid_brand": fluid.brand,
+                        "fluid_product_line": fluid.product_line,
+                        "fluid_type": fluid.fluid_type.value,
+                        "viscosity_sae": fluid.viscosity_sae,
+                        "api_class": fluid.api_class,
+                        "acea_class": fluid.acea_class,
+                        "oem_approvals": fluid.oem_approvals or [],
+                        "volume_liters": rec.volume_liters,
+                        "volume_with_filter": rec.volume_with_filter,
+                        "is_oem_recommendation": rec.is_oem_recommendation,
+                        "oem_specification": rec.oem_specification,
+                        "confidence_score": rec.confidence_score,
+                    },
+                )
             )
-        )
 
         if len(points) >= batch_size:
             await qdrant_client.upsert(

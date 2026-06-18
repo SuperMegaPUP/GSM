@@ -22,7 +22,7 @@ redis>=5.0.0,<6.0.0
 # LLM & RAG
 openai>=1.0.0,<2.0.0
 qdrant-client>=1.10.0,<2.0.0
-sentence-transformers>=2.2.0,<3.0.0
+fastembed>=0.2.0,<1.0.0
 instructor>=1.0.0,<2.0.0
 
 # ETL

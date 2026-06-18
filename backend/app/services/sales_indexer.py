@@ -52,7 +52,7 @@ async def index_sales_objections(
         points.append(
             PointStruct(
                 id=f"{tenant_id}_{i}",
-                vector=model.encode(text).tolist(),
+                vector=list(model.embed([text]))[0].tolist(),
                 payload={
                     "tenant_id": str(tenant_id),
                     "category": entry.get("category", "Общее"),

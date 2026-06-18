@@ -43,12 +43,12 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440  # 24h
 
     # LLM
-    llm_base_url: str = "http://localhost:11434/v1"
-    llm_model: str = "qwen2.5:14b"
+    llm_base_url: str = "http://192.168.122.1:1234/v1"
+    llm_model: str = "Qwen3.6-35B-A3B-Q8_0.gguf"
     llm_api_key: str = "ollama"  # Ollama не требует ключа, но openai-совместимый API ждёт
 
     # Embeddings
-    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     embedding_dim: int = 384
 
     model_config = {

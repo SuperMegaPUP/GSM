@@ -66,7 +66,7 @@ async def _search_relevant_cases(
         return []
 
     model = get_embedding_model()
-    query_vector = model.encode(objection_text).tolist()
+    query_vector = list(model.embed([objection_text]))[0].tolist()
 
     try:
         results = await qdrant.search(
