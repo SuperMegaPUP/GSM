@@ -42,7 +42,11 @@ export async function streamObjectionResponse(
   onError: (error: string) => void,
 ): Promise<void> {
   try {
-    const response = await fetch("http://localhost/api/v1/sales/handle-objection", {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+
+    const response = await fetch("/api/v1/sales/handle-objection", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -55,6 +59,7 @@ export async function streamObjectionResponse(
     });
 
     if (!response.ok) {
+      clearTimeout(timeoutId);
       const errBody = await response.json().catch(() => ({}));
       const message =
         errBody.detail || `Ошибка сервера: ${response.status} ${response.statusText}`;
@@ -63,6 +68,7 @@ export async function streamObjectionResponse(
     }
 
     if (!response.body) {
+      clearTimeout(timeoutId);
       onError("Сервер не вернул тело ответа");
       return;
     }
@@ -71,6 +77,7 @@ export async function streamObjectionResponse(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let receivedDone = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -98,6 +105,7 @@ export async function streamObjectionResponse(
             if (event.type === "chunk") {
               onChunk(event.text);
             } else if (event.type === "done") {
+              receivedDone = true;
               onDone(event.variants);
             } else if (event.type === "fallback") {
               onError(`LLM недоступен: ${event.reason}`);
@@ -113,20 +121,35 @@ export async function streamObjectionResponse(
     }
 
     // Обработка оставшегося буфера
-    if (buffer.startsWith("data: ")) {
+    if (!receivedDone && buffer.startsWith("data: ")) {
       const data = buffer.slice(6);
       if (data !== "[DONE]") {
         try {
           const event: SSEEvent = JSON.parse(data);
           if (event.type === "chunk") onChunk(event.text);
-          else if (event.type === "done") onDone(event.variants);
+          else if (event.type === "done") {
+            receivedDone = true;
+            onDone(event.variants);
+          }
         } catch {
           if (data.trim()) onChunk(data);
         }
       }
     }
+
+    clearTimeout(timeoutId);
+
+    // Если стрим завершился без done — ошибка
+    if (!receivedDone) {
+      onError("Соединение прервано до получения полного ответа");
+    }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Неизвестная ошибка сети";
-    onError(message);
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      onError("Таймаут: модель не ответила за 5 минут");
+    } else {
+      const message = err instanceof Error ? err.message : "Неизвестная ошибка сети";
+      onError(message);
+    }
   }
 }
