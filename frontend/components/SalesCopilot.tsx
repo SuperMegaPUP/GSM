@@ -244,17 +244,27 @@ export function SalesCopilot({
       )}
 
       {/* Зона стриминга — печатающийся текст */}
-      {streaming && fullText && (
+      {streaming && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Loader2 className="h-3 w-3 animate-spin" />
-              ИИ думает...
+              {fullText ? "Генерация ответа..." : "Модель размышляет..."}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg bg-muted/50 p-4 min-h-[120px] max-h-[300px] overflow-y-auto">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{fullText}</p>
+              {fullText ? (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{fullText}</p>
+              ) : (
+                <div className="flex items-center justify-center h-[60px]">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

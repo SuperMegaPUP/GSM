@@ -42,7 +42,7 @@ export async function streamObjectionResponse(
   onError: (error: string) => void,
 ): Promise<void> {
   try {
-    const response = await fetch("/api/sales/handle-objection", {
+    const response = await fetch("http://localhost/api/v1/sales/handle-objection", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
