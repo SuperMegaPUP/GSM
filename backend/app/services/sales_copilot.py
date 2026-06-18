@@ -3,12 +3,11 @@ import logging
 from typing import AsyncGenerator
 from uuid import UUID
 
-from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 
-from app.core.config import settings
 from app.schemas.sales_schemas import ObjectionRequest, ObjectionVariant
+from app.services.llm_client import LLMClient
 from app.services.sales_indexer import _sales_collection
 from app.services.vector_indexer import get_embedding_model
 
@@ -93,6 +92,15 @@ async def _search_relevant_cases(
 # Генерация ответа через LLM (потоковая)
 # =============================================================
 
+SYSTEM_PROMPT = (
+    "Ты — эксперт по B2B продажам автосмасел. "
+    "Отвечай на русском. Клиент высказал возражение. "
+    "Дай 3 варианта ответа строго в указанном формате:\n\n"
+    "## 🤝 Эмпатичный\nпонимание и мягкое переубеждение\n\n"
+    "## 🧠 Рациональный\nцифры, факты, расчёты\n\n"
+    "## ⚡ Перехват инициативы\nпредложение действия (тест, пробник, встреча)"
+)
+
 
 async def _stream_llm_response(
     objection_text: str,
@@ -100,43 +108,9 @@ async def _stream_llm_response(
     rag_cases: list[dict],
 ) -> AsyncGenerator[str, None]:
     prompt = _build_prompt(objection_text, context, rag_cases)
-
-    client = AsyncOpenAI(
-        base_url=settings.llm_base_url,
-        api_key=settings.llm_api_key,
-    )
-
-    stream = await client.chat.completions.create(
-        model=settings.llm_model,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Ты — эксперт по B2B-продажам моторных масел и технических жидкостей. "
-                    "Клиент высказал возражение. Твоя задача — сгенерировать СТРОГО 3 варианта ответа:\n"
-                    "1. Эмпатичный — понимание и мягкое переубеждение.\n"
-                    "2. Рациональный — цифры, факты, расчёты.\n"
-                    "3. Перехват инициативы — предложение действия (тест, пробник, встреча).\n\n"
-                    "Формат ответа (каждый вариант с новой строки):\n"
-                    "## Эмпатичный\nтекст...\n"
-                    "## Рациональный\nтекст...\n"
-                    "## Перехват инициативы\nтекст..."
-                ),
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        stream=True,
-        temperature=0.7,
-        max_tokens=800,
-    )
-
-    async for chunk in stream:
-        content = chunk.choices[0].delta.content
-        if content:
-            yield content
+    client = LLMClient()
+    async for chunk in client.stream_generate(prompt=prompt, system=SYSTEM_PROMPT):
+        yield chunk
 
 
 def _build_prompt(
@@ -166,8 +140,22 @@ def _build_prompt(
 
 def _parse_llm_response(text: str) -> list[ObjectionVariant]:
     variants: list[ObjectionVariant] = []
-    sections = {"## Эмпатичный": "empathic", "## Рациональный": "rational", "## Перехват инициативы": "assertive"}
-    labels = {"## Эмпатичный": "Эмпатичный", "## Рациональный": "Рациональный", "## Перехват инициативы": "Перехват инициативы"}
+    sections = {
+        "## 🤝 Эмпатичный": "empathic",
+        "## 🧠 Рациональный": "rational",
+        "## ⚡ Перехват инициативы": "assertive",
+        "## Эмпатичный": "empathic",
+        "## Рациональный": "rational",
+        "## Перехват инициативы": "assertive",
+    }
+    labels = {
+        "## 🤝 Эмпатичный": "🤝 Эмпатичный",
+        "## 🧠 Рациональный": "🧠 Рациональный",
+        "## ⚡ Перехват инициативы": "⚡ Перехват инициативы",
+        "## Эмпатичный": "Эмпатичный",
+        "## Рациональный": "Рациональный",
+        "## Перехват инициативы": "Перехват инициативы",
+    }
 
     current_style = None
     current_label = None
@@ -212,7 +200,7 @@ async def stream_objection_response(
         request.objection_text, tenant_id, qdrant,
     )
 
-    # Поток SSE: сначала мета-событие с информацией, потом чанки текста
+    # Поток SSE: сначала мета-событие, потом чанки текста, затем done
     meta = json.dumps({
         "type": "meta",
         "rag_cases_found": len(rag_cases),
@@ -231,7 +219,6 @@ async def stream_objection_response(
             yield f"data: {payload}\n\n"
     except Exception as exc:
         logger.error("Ошибка LLM: %s", exc)
-        # Fallback: отправляем заготовки
         fallback_payload = json.dumps({"type": "fallback", "reason": str(exc)})
         yield f"data: {fallback_payload}\n\n"
         full_text = ""
@@ -246,4 +233,3 @@ async def stream_objection_response(
         "variants": [v.model_dump() for v in variants],
     })
     yield f"data: {done}\n\n"
-    yield "data: [DONE]\n\n"
