@@ -46,9 +46,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://192.168.122.1:1234/v1"
     llm_model: str = "Qwen3.6-35B-A3B-Q8_0.gguf"
     llm_api_key: str = "not-needed"
-    llm_max_tokens: int = 1024
+    llm_max_tokens: int = 4096
     llm_temperature: float = 0.7
-    llm_timeout: int = 60
+    llm_timeout: int = 300
 
     # Embeddings
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
