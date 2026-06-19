@@ -94,13 +94,13 @@ async def _search_exact_sql(
             rec_stmt = (
                 select(Recommendation)
                 .options(joinedload(Recommendation.fluid))
-            .where(
-                Recommendation.company_id == tenant_id,
-                Recommendation.car_variant_id == variant.id,
+                .where(
+                    Recommendation.company_id == tenant_id,
+                    Recommendation.car_variant_id == variant.id,
+                )
             )
-        )
-        rec_result = await db.execute(rec_stmt)
-        all_recs.extend(rec_result.unique().scalars().all())
+            rec_result = await db.execute(rec_stmt)
+            all_recs.extend(rec_result.unique().scalars().all())
 
     if not all_recs:
         return None
@@ -116,14 +116,23 @@ async def _search_exact_sql(
         )
         variant_count_result = await db.execute(variant_count_stmt)
         variant_count = len(variant_count_result.scalars().all())
+
+        volumes_stmt = select(CarVariant.engine_volume).where(
+            CarVariant.company_id == tenant_id,
+            CarVariant.model_id == cm.id,
+        ).distinct()
+        volumes_result = await db.execute(volumes_stmt)
+        engine_volumes = sorted([v[0] for v in volumes_result.all() if v[0] is not None])
         
         models_info.append(ModelSearchInfo(
+            id=cm.id,
             name=cm.name,
             engine_code=None,
             engine_volume=None,
             year_start=cm.year_start,
             year_end=cm.year_end,
             variants_count=variant_count,
+            engine_volumes=engine_volumes,
         ))
 
     # Берём первую модель и первый вариант для отображения в заголовке

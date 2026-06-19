@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import uuid as uuid_pkg
+from typing import Optional
 
 from celery import shared_task
 from dataclasses import asdict
@@ -165,7 +166,8 @@ def parse_excel_task(
                 batch_id,
                 ImportStatus.completed,
                 total_rows=pipeline_result["total"],
-                new_rows=pipeline_result["success"],
+                new_rows=pipeline_result["new_rows"],
+                duplicates=pipeline_result["duplicates"],
                 errors=total_errors,
                 engine=engine,
             )
@@ -181,7 +183,8 @@ def parse_excel_task(
                 pipeline_result["created_fluids"],
             )
 
-            index_qdrant_task.delay(batch_id, str(tenant_id))
+            new_rec_ids = pipeline_result.get("new_recommendation_ids", [])
+            index_qdrant_task.delay(batch_id, str(tenant_id), new_rec_ids)
 
             return {
                 "batch_id": batch_id,
@@ -234,9 +237,11 @@ def index_qdrant_task(
     self,
     batch_id: str,
     tenant_id: str,
+    rec_ids: Optional[list[str]] = None,
 ) -> dict:
     logger.info(
-        "Задача index_qdrant_task: batch=%s, tenant=%s", batch_id, tenant_id
+        "Задача index_qdrant_task: batch=%s, tenant=%s, recs=%d",
+        batch_id, tenant_id, len(rec_ids) if rec_ids else 0,
     )
 
     async def _run() -> dict:
@@ -245,10 +250,12 @@ def index_qdrant_task(
         try:
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
             async with session_maker() as db:
+                parsed_ids = [uuid_pkg.UUID(rid) for rid in rec_ids] if rec_ids else None
                 count = await index_recommendations_to_qdrant(
                     tenant_id=uuid_pkg.UUID(tenant_id),
                     db=db,
                     qdrant_client=qdrant,
+                    rec_ids=parsed_ids,
                 )
             logger.info(
                 "Индексация Qdrant завершена batch=%s: %d точек",

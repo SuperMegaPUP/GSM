@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import Recommendation, NodeType
+from app.models.models import NodeType
 from app.services.normalizer import (
     FluidNormalizer,
     normalize_years,
@@ -47,9 +47,20 @@ async def _upsert_model(
 ) -> UUID:
     result = await db.execute(
         text("""
+            SELECT id FROM car_models
+            WHERE company_id = :tid AND brand_id = :bid AND name = :name
+            LIMIT 1
+        """),
+        {"tid": str(tenant_id), "bid": str(brand_id), "name": name},
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing
+
+    result = await db.execute(
+        text("""
             INSERT INTO car_models (company_id, brand_id, name, generation)
             VALUES (:tid, :bid, :name, :gen)
-            ON CONFLICT (company_id, brand_id, name, generation) DO UPDATE SET updated_at = NOW()
             RETURNING id
         """),
         {"tid": str(tenant_id), "bid": str(brand_id), "name": name, "gen": generation},
@@ -152,6 +163,8 @@ async def process_import_batch(
     total = len(raw_rows)
     success = 0
     errors = 0
+    new_rows = 0
+    duplicates = 0
     created_brands = 0
     created_models = 0
     created_variants = 0
@@ -161,6 +174,7 @@ async def process_import_batch(
     model_cache: dict[tuple[UUID, str], UUID] = {}
     variant_cache: dict[str, UUID] = {}
     fluid_cache: dict[str, UUID] = {}
+    new_recommendation_ids: list[str] = []
 
     for i, row_data in enumerate(raw_rows):
         if i > 0 and i % 5000 == 0:
@@ -259,16 +273,34 @@ async def process_import_batch(
                 nt = NodeType.ENGINE
 
             async with db.begin_nested():
-                db.add(Recommendation(
-                    company_id=tenant_id,
-                    car_variant_id=variant_id,
-                    node_type=nt,
-                    fluid_id=fluid_id,
-                    volume_liters=volume,
-                    volume_with_filter=volume_with_filter,
-                    is_oem_recommendation=True,
-                    source="excel_import",
-                ))
+                rec_result = await db.execute(
+                    text("""
+                        INSERT INTO recommendations
+                            (company_id, car_variant_id, node_type, fluid_id,
+                             volume_liters, volume_with_filter,
+                             is_oem_recommendation, source)
+                        VALUES (:tid, :vid, CAST(:nt AS node_type), :fid,
+                                :vol, :vol_f,
+                                TRUE, 'excel_import')
+                        ON CONFLICT (company_id, car_variant_id, node_type, fluid_id)
+                        DO NOTHING
+                        RETURNING id
+                    """),
+                    {
+                        "tid": str(tenant_id),
+                        "vid": str(variant_id),
+                        "nt": nt.value,
+                        "fid": str(fluid_id),
+                        "vol": volume,
+                        "vol_f": volume_with_filter,
+                    },
+                )
+                rec_row = rec_result.scalar_one_or_none()
+                if rec_row is not None:
+                    new_recommendation_ids.append(str(rec_row))
+                    new_rows += 1
+                else:
+                    duplicates += 1
 
             success += 1
 
@@ -293,10 +325,13 @@ async def process_import_batch(
         "total": total,
         "success": success,
         "errors": errors,
+        "new_rows": new_rows,
+        "duplicates": duplicates,
         "created_brands": created_brands,
         "created_models": created_models,
         "created_variants": created_variants,
         "created_fluids": created_fluids,
+        "new_recommendation_ids": new_recommendation_ids,
     }
 
 

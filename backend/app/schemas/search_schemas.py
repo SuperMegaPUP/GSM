@@ -43,12 +43,14 @@ class NodeGroupResult(BaseModel):
 
 class ModelSearchInfo(BaseModel):
     """Информация о найденной модели автомобиля."""
+    id: UUID
     name: str
     engine_code: Optional[str] = None
     engine_volume: Optional[float] = None
     year_start: Optional[int] = None
     year_end: Optional[int] = None
     variants_count: int = 0
+    engine_volumes: list[float] = []
 
 
 class SearchResponse(BaseModel):
