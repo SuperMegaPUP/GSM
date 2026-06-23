@@ -65,6 +65,7 @@ const STATUS_COLORS: Record<ImportStatus, string> = {
 // Моковые данные для истории (пока нет эндпоинта списка)
 // =============================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOCK_HISTORY: ImportBatch[] = [
   {
     id: "mock-1",
@@ -206,6 +207,7 @@ export default function ImportsPage() {
 
     setFile(selectedFile);
     uploadFile(selectedFile);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

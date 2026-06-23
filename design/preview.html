@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="industrial-warm">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GSM Design System — Interactive Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+ * GSM Design System — Interactive Preview
+ * Three themes in one file. Open in any modern browser. No build step.
+ * ============================================================================ */
+
+@import url('./tokens.css');
+
+/* ─── Reset & base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: var(--font-feature-settings);
+  font-synthesis: none;
+  transition: background-color var(--duration-base) var(--ease-out),
+              color var(--duration-base) var(--ease-out);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: none; background: none; }
+a { color: inherit; text-decoration: none; }
+
+/* Mono utility — for technical data */
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'ss02', 'ss05';
+  letter-spacing: var(--tracking-mono);
+}
+
+/* ============================================================================
+ * THEME SWITCHER (top right)
+ * ============================================================================ */
+.theme-switcher {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+}
+.theme-switcher__label {
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+  padding: 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: 500;
+}
+.theme-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  transition: transform var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+.theme-chip:hover { transform: scale(1.1); }
+.theme-chip[aria-pressed="true"] {
+  border-color: var(--foreground);
+  transform: scale(1.1);
+}
+.theme-chip[aria-pressed="true"]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid var(--foreground);
+  border-radius: var(--radius-lg);
+  opacity: 0.3;
+}
+.theme-chip--industrial {
+  background: linear-gradient(135deg, oklch(0.985 0.004 75) 0%, oklch(0.45 0.09 195) 60%, oklch(0.62 0.13 50) 100%);
+}
+.theme-chip--onyx {
+  background: linear-gradient(135deg, oklch(0.14 0.005 250) 0%, oklch(0.72 0.13 195) 60%, oklch(0.78 0.15 75) 100%);
+}
+.theme-chip--arctic {
+  background: linear-gradient(135deg, oklch(0.985 0.005 240) 0%, oklch(0.58 0.14 220) 60%, oklch(0.62 0.18 340) 100%);
+}
+
+/* ============================================================================
+ * SIDEBAR
+ * ============================================================================ */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+}
+.sidebar {
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  padding: 1.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--sidebar-border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  margin-bottom: 2rem;
+}
+.brand__mark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  display: grid;
+  place-items: center;
+  color: var(--primary-foreground);
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: var(--shadow-md), inset 0 1px 0 oklch(1 0 0 / 0.2);
+  position: relative;
+  overflow: hidden;
+}
+.brand__mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, oklch(1 0 0 / 0.3), transparent 50%);
+}
+.brand__name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--sidebar-foreground);
+}
+.brand__name span {
+  color: var(--sidebar-accent);
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  margin-left: 0.25rem;
+  opacity: 0.7;
+}
+
+.nav-section {
+  margin-bottom: 1.5rem;
+}
+.nav-section__label {
+  padding: 0 0.75rem;
+  margin-bottom: 0.25rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--sidebar-muted);
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+.nav-item:hover {
+  background: oklch(1 0 0 / 0.05);
+}
+.nav-item[aria-current="page"] {
+  background: oklch(1 0 0 / 0.08);
+  color: var(--sidebar-accent);
+}
+.nav-item[aria-current="page"]::before {
+  content: '';
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--sidebar-accent);
+  border-radius: var(--radius-full);
+}
+.nav-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.nav-item__badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: var(--sidebar-accent);
+  color: var(--accent-foreground);
+  letter-spacing: 0;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 0.75rem;
+  border-top: 1px solid var(--sidebar-border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--accent-foreground);
+  flex-shrink: 0;
+}
+.user-info__name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.user-info__role {
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+}
+
+/* ============================================================================
+ * MAIN CONTENT
+ * ============================================================================ */
+.main {
+  padding: 2rem 2.5rem;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.main__header {
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.page-title {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 0.25rem;
+  line-height: 1.1;
+}
+.page-subtitle {
+  font-size: var(--text-base);
+  color: var(--sidebar-muted);
+  margin: 0;
+}
+.breadcrumb {
+  display: flex;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: 500;
+}
+.breadcrumb span { color: var(--accent); }
+
+/* ============================================================================
+ * SECTION
+ * ============================================================================ */
+.section {
+  margin-bottom: 4rem;
+  scroll-margin-top: 2rem;
+}
+.section__title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  letter-spacing: var(--tracking-tight);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.section__title::before {
+  content: '';
+  width: 4px;
+  height: 1.25em;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  border-radius: var(--radius-full);
+}
+.section__hint {
+  font-size: var(--text-sm);
+  color: var(--sidebar-muted);
+  margin: 0 0 1.5rem;
+}
+
+/* ============================================================================
+ * BUTTONS
+ * ============================================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid transparent;
+  background: var(--surface-1);
+  color: var(--foreground);
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn svg { width: 16px; height: 16px; }
+
+.btn--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-sm);
+}
+.btn--primary:hover {
+  background: var(--primary-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.btn--accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: var(--shadow-sm);
+}
+.btn--accent:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.btn--ghost:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.btn--danger {
+  background: var(--destructive);
+  color: oklch(0.99 0 0);
+}
+.btn--danger:hover { filter: brightness(1.1); }
+
+.btn--sm { padding: 0.25rem 0.625rem; font-size: var(--text-xs); }
+.btn--lg { padding: 0.75rem 1.5rem; font-size: var(--text-md); }
+.btn--icon { padding: 0.5rem; aspect-ratio: 1; justify-content: center; }
+
+/* ============================================================================
+ * CARD
+ * ============================================================================ */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-base) var(--ease-out),
+              transform var(--duration-base) var(--ease-out),
+              border-color var(--duration-base) var(--ease-out);
+}
+.card--hover:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+.card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+.card__title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  letter-spacing: var(--tracking-tight);
+}
+.card__subtitle {
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* ============================================================================
+ * FLUID CARD — the heart of the search results
+ * ============================================================================ */
+.fluid-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.fluid-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--badge-color, var(--primary));
+  opacity: 0.7;
+}
+.fluid-card:hover {
+  border-color: var(--badge-color, var(--primary));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.fluid-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+.fluid-card__brand {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  margin-bottom: 0.25rem;
+}
+.fluid-card__name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  letter-spacing: var(--tracking-tight);
+}
+.fluid-card__specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.spec-pill {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 0.25rem 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  letter-spacing: var(--tracking-mono);
+}
+.spec-pill--sae { color: var(--primary); border-color: var(--primary-muted); }
+.spec-pill--api { color: var(--accent); border-color: var(--accent-muted); }
+.fluid-card__volume {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--foreground);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+}
+.fluid-card__volume span {
+  color: var(--sidebar-muted);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  margin-right: 0.5rem;
+}
+
+/* ============================================================================
+ * BADGES — semantic, not decorative
+ * ============================================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge svg { width: 12px; height: 12px; }
+.badge--oem { background: var(--success-muted); color: var(--success); border-color: var(--success); }
+.badge--approval { background: var(--info-muted); color: var(--info); border-color: var(--info); }
+.badge--alternative { background: var(--surface-2); color: var(--sidebar-muted); border-color: var(--border-strong); }
+.badge--warning { background: var(--warning-muted); color: var(--warning); border-color: var(--warning); }
+.badge--danger { background: var(--destructive-muted); color: var(--destructive); border-color: var(--destructive); }
+.badge--processing { background: var(--info-muted); color: var(--info); border-color: var(--info); }
+.badge--completed { background: var(--success-muted); color: var(--success); border-color: var(--success); }
+
+/* ============================================================================
+ * NODE TYPE PILLS — 3 groups, not rainbow
+ * ============================================================================ */
+.node-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.node-pill svg { width: 12px; height: 12px; opacity: 0.9; }
+.node-pill[aria-pressed="true"] {
+  box-shadow: var(--shadow-xs);
+}
+.node-pill--engine { background: var(--node-engine-bg); color: var(--node-engine); border-color: var(--node-engine); }
+.node-pill--transmission { background: var(--node-transmission-bg); color: var(--node-transmission); border-color: var(--node-transmission); }
+.node-pill--drivetrain { background: var(--node-drivetrain-bg); color: var(--node-drivetrain); border-color: var(--node-drivetrain); }
+.node-pill--fluids { background: var(--node-fluids-bg); color: var(--node-fluids); border-color: var(--node-fluids); }
+.node-pill--brakes { background: var(--node-brakes-bg); color: var(--node-brakes); border-color: var(--node-brakes); }
+
+/* ============================================================================
+ * INPUTS
+ * ============================================================================ */
+.field { display: flex; flex-direction: column; gap: 0.375rem; }
+.field__label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--foreground);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+.input, .select {
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--foreground);
+  transition: all var(--duration-fast) var(--ease-out);
+  width: 100%;
+}
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+}
+.input::placeholder { color: var(--sidebar-muted); }
+.input--mono { font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
+
+/* ============================================================================
+ * DIALOG (modal)
+ * ============================================================================ */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.10 0.005 250 / 0.5);
+  backdrop-filter: blur(8px);
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+.dialog-backdrop[open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.dialog {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  max-width: 32rem;
+  width: 100%;
+  box-shadow: var(--shadow-2xl);
+  transform: scale(0.95) translateY(8px);
+  opacity: 0;
+  transition: transform var(--duration-slow) var(--ease-spring),
+              opacity var(--duration-base) var(--ease-out);
+}
+.dialog-backdrop[open] .dialog {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.dialog__header {
+  margin-bottom: 1rem;
+}
+.dialog__title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  letter-spacing: var(--tracking-tight);
+}
+.dialog__desc {
+  font-size: var(--text-sm);
+  color: var(--sidebar-muted);
+  margin: 0;
+}
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+/* ============================================================================
+ * COMMAND PALETTE (Cmd+K)
+ * ============================================================================ */
+.cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.10 0.005 250 / 0.6);
+  backdrop-filter: blur(8px);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.cmdk-backdrop[open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cmdk {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 36rem;
+  box-shadow: var(--shadow-2xl);
+  overflow: hidden;
+  transform: scale(0.98) translateY(-8px);
+  opacity: 0;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.cmdk-backdrop[open] .cmdk {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.cmdk__input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.cmdk__input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--text-md);
+  outline: none;
+}
+.cmdk__input::placeholder { color: var(--sidebar-muted); }
+.cmdk__kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--sidebar-muted);
+}
+.cmdk__list {
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+.cmdk__group-label {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+.cmdk__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.cmdk__item:hover,
+.cmdk__item[aria-selected="true"] {
+  background: var(--surface-2);
+}
+.cmdk__item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--primary-muted);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.cmdk__item-icon svg { width: 16px; height: 16px; }
+.cmdk__item-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.cmdk__item-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.cmdk__item-subtitle {
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+}
+
+/* ============================================================================
+ * TABLE
+ * ============================================================================ */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.table thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--sidebar-muted);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-strong);
+}
+.table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.table tbody tr {
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+.table tbody tr:last-child td { border-bottom: none; }
+
+/* ============================================================================
+ * PROGRESS
+ * ============================================================================ */
+.progress {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+.progress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slow) var(--ease-spring);
+  position: relative;
+}
+.progress__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.3), transparent);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================================
+ * STAT CARD (dashboard)
+ * ============================================================================ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.stat {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.stat:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.stat::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle at top right, var(--accent-muted), transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.stat__label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--sidebar-muted);
+  margin-bottom: 0.5rem;
+}
+.stat__value {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+}
+.stat__delta {
+  margin-top: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--success);
+  font-weight: 500;
+}
+.stat__delta.is-down { color: var(--destructive); }
+
+/* ============================================================================
+ * LOGIN PAGE PREVIEW
+ * ============================================================================ */
+.login-preview {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  height: 480px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+.login-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, var(--primary-muted), transparent 40%),
+    radial-gradient(circle at 80% 70%, var(--accent-muted), transparent 40%);
+  opacity: 0.7;
+}
+.login-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black, transparent 70%);
+  opacity: 0.4;
+}
+.login-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================================
+ * SALES COPILOT CHAT BUBBLES
+ * ============================================================================ */
+.chat-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  max-width: 80%;
+  margin-bottom: 0.75rem;
+}
+.chat-bubble--user {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  margin-left: auto;
+  border-bottom-right-radius: var(--radius-xs);
+}
+.chat-bubble--ai {
+  background: var(--surface-2);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: var(--radius-xs);
+}
+.chat-bubble__author {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--sidebar-muted);
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* ============================================================================
+ * COLOR SWATCHES
+ * ============================================================================ */
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+.swatch {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: var(--text-xs);
+}
+.swatch__color {
+  height: 60px;
+  position: relative;
+}
+.swatch__info {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.swatch__name {
+  font-weight: 500;
+  color: var(--foreground);
+}
+.swatch__value {
+  font-family: var(--font-mono);
+  color: var(--sidebar-muted);
+  font-size: 10px;
+}
+
+/* ============================================================================
+ * LAYOUT HELPERS
+ * ============================================================================ */
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+.grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grid--4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) {
+  .grid--2, .grid--3, .grid--4 { grid-template-columns: 1fr; }
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 1.25rem; }
+}
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ============================================================================
+ * TYPE SCALE PREVIEW
+ * ============================================================================ */
+.type-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: baseline;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+.type-row:last-child { border-bottom: none; }
+.type-row__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+  text-transform: uppercase;
+}
+.type-row__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--sidebar-muted);
+}
+
+/* ============================================================================
+ * ANIMATION
+ * ============================================================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fadeUp var(--duration-slow) var(--ease-out) both;
+}
+
+/* ============================================================================
+ * TOAST
+ * ============================================================================ */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-toast);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform var(--duration-slow) var(--ease-spring);
+}
+.toast[open] {
+  transform: translateX(-50%) translateY(0);
+}
+.toast svg { width: 16px; height: 16px; color: var(--sidebar-accent); }
+</style>
+</head>
+<body>
+
+<!-- THEME SWITCHER -->
+<div class="theme-switcher" role="toolbar" aria-label="Тема оформления">
+  <span class="theme-switcher__label">Тема</span>
+  <button class="theme-chip theme-chip--industrial" data-theme-set="industrial-warm"
+          aria-pressed="true" aria-label="Industrial Warm" title="Industrial Warm (по умолчанию)"></button>
+  <button class="theme-chip theme-chip--onyx" data-theme-set="onyx-terminal"
+          aria-pressed="false" aria-label="Onyx Terminal" title="Onyx Terminal (тёмная)"></button>
+  <button class="theme-chip theme-chip--arctic" data-theme-set="arctic-tech"
+          aria-pressed="false" aria-label="Arctic Tech" title="Arctic Tech (голубая)"></button>
+</div>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand__mark">G</div>
+      <div class="brand__name">GSM<span>v1.0</span></div>
+    </div>
+
+    <nav class="nav-section">
+      <div class="nav-section__label">Основное</div>
+      <a href="#dashboard" class="nav-item" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Дашборд
+      </a>
+      <a href="#search" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Подбор масел
+      </a>
+      <a href="#imports" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Импорт каталогов
+        <span class="nav-item__badge">2</span>
+      </a>
+      <a href="#copilot" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+        Sales Copilot
+      </a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-section__label">Управление</div>
+      <a href="#analytics" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        Аналитика
+      </a>
+      <a href="#billing" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        Подписка
+      </a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-section__label">Система</div>
+      <a href="#tokens" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        Дизайн-токены
+      </a>
+      <a href="#components" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        Компоненты
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="avatar">АП</div>
+      <div style="flex:1; min-width:0;">
+        <div class="user-info__name">Артём П.</div>
+        <div class="user-info__role">Технолог · ООО «АвтоМасла»</div>
+      </div>
+      <button class="btn btn--sm btn--ghost" style="border-color: var(--sidebar-border); color: var(--sidebar-foreground);" aria-label="Выход">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="breadcrumb">
+      <span>GSM</span> · Design System · <span style="color: var(--foreground);">Preview</span>
+    </div>
+    <div class="main__header">
+      <div>
+        <h1 class="page-title">Design System <span style="color: var(--accent); font-family: var(--font-mono); font-size: 0.5em;">v1.0</span></h1>
+        <p class="page-subtitle">Три темы. Один дизайн. Бесконечная гибкость. Нажмите <kbd style="font-family: var(--font-mono); font-size: 0.85em; padding: 2px 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;">⌘K</kbd> для командной палитры.</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn--ghost" onclick="openDialog()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+          Открыть модалку
+        </button>
+        <button class="btn btn--primary" onclick="showToast()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Показать toast
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ DASHBOARD STATS ═══ -->
+    <section class="section" id="dashboard">
+      <h2 class="section__title">Дашборд</h2>
+      <p class="section__hint">Ключевые метрики системы — реальный пример данных из последнего ETL-прогона.</p>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat__label">Строк каталога</div>
+          <div class="stat__value">11 167</div>
+          <div class="stat__delta">↑ +2 486 за неделю</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Брендов авто</div>
+          <div class="stat__value">8</div>
+          <div class="stat__delta">↑ Honda добавлена</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Моделей</div>
+          <div class="stat__value">538</div>
+          <div class="stat__delta is-down">↓ −12 после дедупликации</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Рекомендаций</div>
+          <div class="stat__value">13 220</div>
+          <div class="stat__delta">↑ +1 847 за неделю</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SEARCH RESULTS ═══ -->
+    <section class="section" id="search">
+      <h2 class="section__title">Подбор масел</h2>
+      <p class="section__hint">Главная ценность продукта. Группировка по узлам — 5 цветовых групп вместо радуги.</p>
+
+      <!-- Search form preview -->
+      <div class="card mb-4">
+        <div class="grid grid--4 mb-2">
+          <div class="field">
+            <label class="field__label">Марка</label>
+            <select class="select">
+              <option>Honda</option><option>Toyota</option><option>Nissan</option><option>Mazda</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label">Модель</label>
+            <select class="select">
+              <option>Accord</option><option>Civic</option><option>CR-V</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label">Год выпуска</label>
+            <input class="input input--mono" type="text" value="2003" placeholder="2003">
+          </div>
+          <div class="field">
+            <label class="field__label">Двигатель</label>
+            <input class="input input--mono" type="text" value="K20A" placeholder="K20A">
+          </div>
+        </div>
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-2 flex-wrap">
+            <button class="node-pill node-pill--engine" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14 4h-4v4h-2v3H5v3h2v3h2v3h4M14 4v3h2v3h2v3h-2v3h-2v4"/></svg>
+              Двигатель
+            </button>
+            <button class="node-pill node-pill--transmission">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M19 5l-2 2M7 17l-2 2M19 19l-2-2M7 7L5 5"/></svg>
+              МКПП
+            </button>
+            <button class="node-pill node-pill--transmission">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+              АКПП
+            </button>
+            <button class="node-pill node-pill--drivetrain">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>
+              Дифференциал
+            </button>
+            <button class="node-pill node-pill--fluids">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v6M12 22v-6M2 12h6M22 12h-6"/></svg>
+              Охлаждение
+            </button>
+            <button class="node-pill node-pill--brakes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+              Тормоза
+            </button>
+          </div>
+          <button class="btn btn--primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Подобрать
+          </button>
+        </div>
+      </div>
+
+      <!-- Fluid cards grid -->
+      <div class="grid grid--3">
+        <!-- OEM -->
+        <div class="fluid-card" style="--badge-color: var(--success);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">Gazpromneft · OEM</div>
+              <h3 class="fluid-card__name">Gazpromneft Super 10W-30</h3>
+            </div>
+            <span class="badge badge--oem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Оригинал
+            </span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">5W-30</span>
+            <span class="spec-pill spec-pill--api">SJ/GF-3</span>
+            <span class="spec-pill">SL</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>4.2 L
+            <span style="margin-left:1rem;">с фильтром:</span>4.4 L
+          </div>
+        </div>
+
+        <!-- Approval -->
+        <div class="fluid-card" style="--badge-color: var(--info);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">G-Energy · Допуск</div>
+              <h3 class="fluid-card__name">G-Energy Far East 0W-20</h3>
+            </div>
+            <span class="badge badge--approval">Допуск OEM</span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">0W-20</span>
+            <span class="spec-pill spec-pill--api">SJ/GF-3</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>4.0 L
+            <span style="margin-left:1rem;">с фильтром:</span>4.2 L
+          </div>
+        </div>
+
+        <!-- Alternative -->
+        <div class="fluid-card" style="--badge-color: var(--sidebar-muted);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">Generic · Аналог</div>
+              <h3 class="fluid-card__name">LUKOIL Genesis Special 5W-30</h3>
+            </div>
+            <span class="badge badge--alternative">Аналог</span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">5W-30</span>
+            <span class="spec-pill spec-pill--api">SN/CF</span>
+            <span class="spec-pill">ACEA A3</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>4.2 L
+            <span style="margin-left:1rem;">с фильтром:</span>4.4 L
+          </div>
+        </div>
+
+        <!-- ATF -->
+        <div class="fluid-card" style="--badge-color: var(--accent);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">G-Box · АКПП</div>
+              <h3 class="fluid-card__name">G-Box ATF Far East</h3>
+            </div>
+            <span class="badge badge--approval">ATF Dexron III</span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">ATF</span>
+            <span class="spec-pill spec-pill--api">Dexron III/IAT</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>6.5 L
+            <span style="margin-left:1rem;">тип:</span>ATF
+          </div>
+        </div>
+
+        <!-- Manual transmission -->
+        <div class="fluid-card" style="--badge-color: var(--warning);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">G-Box · МКПП</div>
+              <h3 class="fluid-card__name">G-Box GL-4 75W-90</h3>
+            </div>
+            <span class="badge badge--approval">GL-4</span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">75W-90</span>
+            <span class="spec-pill spec-pill--api">GL-4</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>1.9 L
+            <span style="margin-left:1rem;">тип:</span>MTF
+          </div>
+        </div>
+
+        <!-- Differential -->
+        <div class="fluid-card" style="--badge-color: var(--node-drivetrain);">
+          <div class="fluid-card__header">
+            <div>
+              <div class="fluid-card__brand">G-Truck · Дифференциал</div>
+              <h3 class="fluid-card__name">G-Truck GL-5 80W-90</h3>
+            </div>
+            <span class="badge badge--alternative">Аналог</span>
+          </div>
+          <div class="fluid-card__specs">
+            <span class="spec-pill spec-pill--sae">80W-90</span>
+            <span class="spec-pill spec-pill--api">GL-5</span>
+            <span class="spec-pill">LSD</span>
+          </div>
+          <div class="fluid-card__volume">
+            <span>Объём:</span>1.0 L
+            <span style="margin-left:1rem;">тип:</span>Hypoid
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ IMPORTS ═══ -->
+    <section class="section" id="imports">
+      <h2 class="section__title">Импорт каталогов</h2>
+      <p class="section__hint">Загрузка Excel-файлов с прогрессом в реальном времени и история операций.</p>
+
+      <div class="grid grid--2">
+        <div class="card">
+          <div class="card__header">
+            <div>
+              <h3 class="card__title">Импорт Honda.xlsx</h3>
+              <p class="card__subtitle">336 строк · 22 колонки · начат 14:23</p>
+            </div>
+            <span class="badge badge--processing">
+              <span class="typing-dot" style="background: var(--info);"></span>
+              Обработка
+            </span>
+          </div>
+          <div class="progress mb-2">
+            <div class="progress__bar" style="width: 73%;"></div>
+          </div>
+          <div class="flex justify-between" style="font-size: var(--text-xs); color: var(--sidebar-muted); font-family: var(--font-mono);">
+            <span>245 / 336 строк</span>
+            <span>73%</span>
+            <span>~ 18 сек осталось</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__header">
+            <div>
+              <h3 class="card__title">Импорт Toyota.xlsx</h3>
+              <p class="card__subtitle">1067 строк · завершён за 1м 12с</p>
+            </div>
+            <span class="badge badge--completed">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Завершено
+            </span>
+          </div>
+          <div class="grid grid--3 mt-2" style="font-size: var(--text-xs);">
+            <div>
+              <div style="color: var(--sidebar-muted);">Создано</div>
+              <div class="mono" style="font-size: var(--text-md); font-weight: 600; color: var(--success);">+2 486</div>
+            </div>
+            <div>
+              <div style="color: var(--sidebar-muted);">Дубликаты</div>
+              <div class="mono" style="font-size: var(--text-md); font-weight: 600;">312</div>
+            </div>
+            <div>
+              <div style="color: var(--sidebar-muted);">Ошибки FK</div>
+              <div class="mono" style="font-size: var(--text-md); font-weight: 600; color: var(--warning);">47</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4" style="padding: 0;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Файл</th>
+              <th>Бренд</th>
+              <th>Строк</th>
+              <th>Статус</th>
+              <th>Дата</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">katalog_gsm.xlsx</td>
+              <td>Все 8</td>
+              <td class="mono">11 167</td>
+              <td><span class="badge badge--completed">Завершено</span></td>
+              <td class="mono">17.06.2025 14:24</td>
+              <td><button class="btn btn--sm btn--ghost">Отчёт</button></td>
+            </tr>
+            <tr>
+              <td class="mono">honda_pilot.xlsx</td>
+              <td>Honda</td>
+              <td class="mono">186</td>
+              <td><span class="badge badge--processing">В работе</span></td>
+              <td class="mono">17.06.2025 16:02</td>
+              <td><button class="btn btn--sm btn--ghost">Отмена</button></td>
+            </tr>
+            <tr>
+              <td class="mono">mazda_fix.xlsx</td>
+              <td>Mazda</td>
+              <td class="mono">47</td>
+              <td><span class="badge badge--danger">Ошибка</span></td>
+              <td class="mono">17.06.2025 11:15</td>
+              <td><button class="btn btn--sm btn--ghost">Повторить</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ SALES COPILOT ═══ -->
+    <section class="section" id="copilot">
+      <h2 class="section__title">Sales Copilot</h2>
+      <p class="section__hint">ИИ-ассистент для отработки возражений. SSE-стриминг ответов в реальном времени.</p>
+
+      <div class="card" style="max-width: 640px;">
+        <div class="chat-bubble chat-bubble--user">
+          <div class="chat-bubble__author">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Клиент
+          </div>
+          А почему у вас масло так дорого? На Авито в два раза дешевле можно взять.
+        </div>
+        <div class="chat-bubble chat-bubble--ai">
+          <div class="chat-bubble__author">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>
+            ИИ-эксперт · 3 варианта ответа
+          </div>
+          <strong style="color: var(--accent);">1. Рациональный:</strong> Понимаю, цена важна. Но масло с Авито часто хранится без температурного режима — вязкость деградирует. У нас оригинальная Gazpromneft со склада с температурным логом. Разница в цене — страховка двигателя на 30 000 км.
+          <div style="margin-top: 0.75rem;"><strong style="color: var(--primary);">2. Эмпатичный:</strong> Согласен, Авито привлекательнее по цене. Если двигатель уже не первой молодости — бюджетный вариант может обойтись капремонтом. Предлагаю проверить: я могу сделать подбор под ваш пробег с альтернативой подешевле.</div>
+          <div style="margin-top: 0.75rem;"><strong style="color: var(--node-drivetrain);">3. Перехват инициативы:</strong> На Авито нет документа соответствия. Для вашего Honda Accord 2003 K20A допуск SJ/GF-3 обязателен. Я могу оформить гарантию — если в течение года будут проблемы с двигателем, покроем ремонт. Готовы?</div>
+        </div>
+        <div class="chat-bubble chat-bubble--ai" style="background: transparent; border: 1px dashed var(--border);">
+          <div class="chat-bubble__author">
+            <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+            ИИ печатает...
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ LOGIN PREVIEW ═══ -->
+    <section class="section">
+      <h2 class="section__title">Login Screen</h2>
+      <p class="section__hint">Первое впечатление — обложка продукта для инвесторов и клиентов.</p>
+
+      <div class="login-preview">
+        <div class="login-card">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="brand__mark" style="width:40px; height:40px;">G</div>
+            <div>
+              <div style="font-size: var(--text-lg); font-weight: 600; letter-spacing: var(--tracking-tight);">GSM</div>
+              <div style="font-size: var(--text-xs); color: var(--sidebar-muted);">Get Some Motor oil</div>
+            </div>
+          </div>
+          <h3 style="font-size: var(--text-xl); font-weight: 600; margin: 0 0 0.25rem; letter-spacing: var(--tracking-tight);">С возвращением</h3>
+          <p style="font-size: var(--text-sm); color: var(--sidebar-muted); margin: 0 0 1.25rem;">Войдите в систему подбора масел</p>
+          <div class="field mb-4">
+            <label class="field__label">Email</label>
+            <input class="input" type="email" placeholder="technologist@company.ru" value="artem@oil.ru">
+          </div>
+          <div class="field mb-4">
+            <label class="field__label">Пароль</label>
+            <input class="input" type="password" placeholder="••••••••" value="secret123">
+          </div>
+          <button class="btn btn--primary" style="width: 100%; justify-content: center; padding: 0.625rem;">
+            Войти
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <p style="text-align: center; font-size: var(--text-xs); color: var(--sidebar-muted); margin: 1rem 0 0;">
+            Нет аккаунта? <a href="#" style="color: var(--primary); font-weight: 500;">Зарегистрировать компанию</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ DESIGN TOKENS ═══ -->
+    <section class="section" id="tokens">
+      <h2 class="section__title">Цветовая палитра</h2>
+      <p class="section__hint">Полный набор токенов текущей темы. OKLCH для перцептуальной однородности.</p>
+
+      <div class="swatch-grid">
+        <div class="swatch"><div class="swatch__color" style="background: var(--background);"></div><div class="swatch__info"><span class="swatch__name">background</span><span class="swatch__value">--background</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--foreground);"></div><div class="swatch__info"><span class="swatch__name">foreground</span><span class="swatch__value">--foreground</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--surface-1); border-right: 1px solid var(--border);"></div><div class="swatch__info"><span class="swatch__name">surface-1</span><span class="swatch__value">--surface-1</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--surface-2);"></div><div class="swatch__info"><span class="swatch__name">surface-2</span><span class="swatch__value">--surface-2</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--primary);"></div><div class="swatch__info"><span class="swatch__name">primary</span><span class="swatch__value">--primary</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--accent);"></div><div class="swatch__info"><span class="swatch__name">accent</span><span class="swatch__value">--accent</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--success);"></div><div class="swatch__info"><span class="swatch__name">success</span><span class="swatch__value">--success</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--warning);"></div><div class="swatch__info"><span class="swatch__name">warning</span><span class="swatch__value">--warning</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--destructive);"></div><div class="swatch__info"><span class="swatch__name">destructive</span><span class="swatch__value">--destructive</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--info);"></div><div class="swatch__info"><span class="swatch__name">info</span><span class="swatch__value">--info</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--sidebar);"></div><div class="swatch__info"><span class="swatch__name">sidebar</span><span class="swatch__value">--sidebar</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--sidebar-accent);"></div><div class="swatch__info"><span class="swatch__name">sidebar-accent</span><span class="swatch__value">--sidebar-accent</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--border);"></div><div class="swatch__info"><span class="swatch__name">border</span><span class="swatch__value">--border</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--node-engine);"></div><div class="swatch__info"><span class="swatch__name">node-engine</span><span class="swatch__value">--node-engine</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--node-transmission);"></div><div class="swatch__info"><span class="swatch__name">node-transmission</span><span class="swatch__value">--node-transmission</span></div></div>
+        <div class="swatch"><div class="swatch__color" style="background: var(--node-drivetrain);"></div><div class="swatch__info"><span class="swatch__name">node-drivetrain</span><span class="swatch__value">--node-drivetrain</span></div></div>
+      </div>
+    </section>
+
+    <!-- ═══ TYPE SCALE ═══ -->
+    <section class="section">
+      <h2 class="section__title">Типографическая шкала</h2>
+      <p class="section__hint">Inter для UI + JetBrains Mono для технических данных. Ratio 1.250 (Major Third).</p>
+
+      <div class="card">
+        <div class="type-row">
+          <span class="type-row__label">5xl</span>
+          <span style="font-size: var(--text-5xl); font-weight: 600; letter-spacing: var(--tracking-tight);">Display</span>
+          <span class="type-row__value">3.000rem / 48px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">4xl</span>
+          <span style="font-size: var(--text-4xl); font-weight: 600; letter-spacing: var(--tracking-tight);">Page title</span>
+          <span class="type-row__value">2.250rem / 36px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">3xl</span>
+          <span style="font-size: var(--text-3xl); font-weight: 600; letter-spacing: var(--tracking-tight);">Section title</span>
+          <span class="type-row__value">1.875rem / 30px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">2xl</span>
+          <span style="font-size: var(--text-2xl); font-weight: 600;">Card title</span>
+          <span class="type-row__value">1.500rem / 24px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">xl</span>
+          <span style="font-size: var(--text-xl); font-weight: 600;">Subsection</span>
+          <span class="type-row__value">1.125rem / 18px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">md</span>
+          <span style="font-size: var(--text-md);">Body large / button</span>
+          <span class="type-row__value">1.000rem / 16px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">base</span>
+          <span style="font-size: var(--text-base);">Body — B2B sweet spot</span>
+          <span class="type-row__value">0.9375rem / 15px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">sm</span>
+          <span style="font-size: var(--text-sm);">Secondary text</span>
+          <span class="type-row__value">0.875rem / 14px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">xs</span>
+          <span style="font-size: var(--text-xs);">Labels, captions, badges</span>
+          <span class="type-row__value">0.750rem / 12px</span>
+        </div>
+        <div class="type-row">
+          <span class="type-row__label">mono</span>
+          <span class="mono" style="font-size: var(--text-base);">5W-30 · K20A · LA-CL7 · 4.2L · SJ/GF-3</span>
+          <span class="type-row__value">JetBrains Mono</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ COMPONENT GALLERY ═══ -->
+    <section class="section" id="components">
+      <h2 class="section__title">Компоненты</h2>
+      <p class="section__hint">Галерея базовых компонентов с состояниями.</p>
+
+      <div class="card mb-4">
+        <h3 class="card__title mb-2">Кнопки</h3>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btn--primary">Primary</button>
+          <button class="btn btn--accent">Accent</button>
+          <button class="btn btn--ghost">Ghost</button>
+          <button class="btn btn--danger">Danger</button>
+          <button class="btn btn--sm btn--primary">Small</button>
+          <button class="btn btn--lg btn--primary">Large</button>
+          <button class="btn btn--icon btn--ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <h3 class="card__title mb-2">Бейджи (семантические)</h3>
+        <div class="flex flex-wrap gap-2">
+          <span class="badge badge--oem">Оригинал OEM</span>
+          <span class="badge badge--approval">Допуск OEM</span>
+          <span class="badge badge--alternative">Аналог</span>
+          <span class="badge badge--processing">В работе</span>
+          <span class="badge badge--completed">Завершено</span>
+          <span class="badge badge--warning">Внимание</span>
+          <span class="badge badge--danger">Ошибка</span>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <h3 class="card__title mb-2">Поля ввода</h3>
+        <div class="grid grid--3">
+          <div class="field">
+            <label class="field__label">Обычное</label>
+            <input class="input" placeholder="Введите текст">
+          </div>
+          <div class="field">
+            <label class="field__label">Моноширинное</label>
+            <input class="input input--mono" placeholder="K20A" value="K20A">
+          </div>
+          <div class="field">
+            <label class="field__label">Селект</label>
+            <select class="select"><option>Опция 1</option><option>Опция 2</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card__title mb-2">Прогресс-бары</h3>
+        <div class="flex flex-col gap-3">
+          <div>
+            <div class="flex justify-between mb-2" style="font-size: var(--text-xs);"><span>Загрузка Honda</span><span class="mono">73%</span></div>
+            <div class="progress"><div class="progress__bar" style="width: 73%;"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-2" style="font-size: var(--text-xs);"><span>Загрузка Toyota</span><span class="mono">100%</span></div>
+            <div class="progress"><div class="progress__bar" style="width: 100%;"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-2" style="font-size: var(--text-xs);"><span>Дедупликация</span><span class="mono">28%</span></div>
+            <div class="progress"><div class="progress__bar" style="width: 28%;"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div style="height: 4rem;"></div>
+  </main>
+</div>
+
+<!-- DIALOG -->
+<div class="dialog-backdrop" id="dialog" onclick="if(event.target===this)closeDialog()">
+  <div class="dialog">
+    <div class="dialog__header">
+      <h3 class="dialog__title">Подтвердите действие</h3>
+      <p class="dialog__desc">Это действие нельзя отменить. Запись будет удалена навсегда.</p>
+    </div>
+    <div class="card" style="background: var(--surface-2); padding: 1rem;">
+      <div class="flex items-center gap-3">
+        <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--destructive-muted); color: var(--destructive); display: grid; place-items: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </div>
+        <div>
+          <div style="font-weight: 500;">Удалить импорт <span class="mono">honda_pilot.xlsx</span>?</div>
+          <div style="font-size: var(--text-xs); color: var(--sidebar-muted);">336 строк рекомендаций будут удалены</div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn btn--ghost" onclick="closeDialog()">Отмена</button>
+      <button class="btn btn--danger" onclick="closeDialog(); showToast('Импорт удалён')">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmdk-backdrop" id="cmdk" onclick="if(event.target===this)closeCmdk()">
+  <div class="cmdk">
+    <div class="cmdk__input-wrap">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sidebar-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input class="cmdk__input" placeholder="Найти команду, страницу или масло..." id="cmdk-input">
+      <span class="cmdk__kbd">ESC</span>
+    </div>
+    <div class="cmdk__list">
+      <div class="cmdk__group-label">Действия</div>
+      <div class="cmdk__item">
+        <div class="cmdk__item-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Подобрать масло</span>
+          <span class="cmdk__item-subtitle">Перейти к форме подбора</span>
+        </div>
+        <span class="cmdk__kbd">⏎</span>
+      </div>
+      <div class="cmdk__item">
+        <div class="cmdk__item-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Загрузить каталог</span>
+          <span class="cmdk__item-subtitle">Импорт Excel в БД</span>
+        </div>
+      </div>
+      <div class="cmdk__item">
+        <div class="cmdk__item-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Sales Copilot</span>
+          <span class="cmdk__item-subtitle">Отработка возражений</span>
+        </div>
+      </div>
+      <div class="cmdk__group-label">Навигация</div>
+      <div class="cmdk__item">
+        <div class="cmdk__item-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Перейти на Дашборд</span>
+          <span class="cmdk__item-subtitle">Метрики и аналитика</span>
+        </div>
+      </div>
+      <div class="cmdk__item">
+        <div class="cmdk__item-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Открыть Аналитику</span>
+          <span class="cmdk__item-subtitle">Predictive daily plan</span>
+        </div>
+      </div>
+      <div class="cmdk__group-label">Тема</div>
+      <div class="cmdk__item" onclick="setTheme('industrial-warm'); closeCmdk();">
+        <div class="cmdk__item-icon" style="background: var(--surface-2); color: var(--primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Industrial Warm</span>
+          <span class="cmdk__item-subtitle">Тёплая инженерная тема (по умолчанию)</span>
+        </div>
+      </div>
+      <div class="cmdk__item" onclick="setTheme('onyx-terminal'); closeCmdk();">
+        <div class="cmdk__item-icon" style="background: var(--surface-2); color: var(--primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Onyx Terminal</span>
+          <span class="cmdk__item-subtitle">Тёмная для работы вечером</span>
+        </div>
+      </div>
+      <div class="cmdk__item" onclick="setTheme('arctic-tech'); closeCmdk();">
+        <div class="cmdk__item-icon" style="background: var(--surface-2); color: var(--primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="cmdk__item-text">
+          <span class="cmdk__item-title">Arctic Tech</span>
+          <span class="cmdk__item-subtitle">Минимализм Stripe-стиля</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-text">Готово</span>
+</div>
+
+<script>
+// ─── Theme switching ──────────────────────────────────────────────
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.querySelectorAll('.theme-chip').forEach(chip => {
+    chip.setAttribute('aria-pressed', chip.dataset.themeSet === theme ? 'true' : 'false');
+  });
+  try { localStorage.setItem('gsm-theme', theme); } catch (e) {}
+}
+document.querySelectorAll('.theme-chip').forEach(chip => {
+  chip.addEventListener('click', () => setTheme(chip.dataset.themeSet));
+});
+// Restore saved theme
+try {
+  const saved = localStorage.getItem('gsm-theme');
+  if (saved) setTheme(saved);
+} catch (e) {}
+
+// ─── Dialog ───────────────────────────────────────────────────────
+function openDialog() { document.getElementById('dialog').setAttribute('open', ''); }
+function closeDialog() { document.getElementById('dialog').removeAttribute('open'); }
+
+// ─── Command palette ──────────────────────────────────────────────
+function openCmdk() {
+  document.getElementById('cmdk').setAttribute('open', '');
+  setTimeout(() => document.getElementById('cmdk-input').focus(), 100);
+}
+function closeCmdk() { document.getElementById('cmdk').removeAttribute('open'); }
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    const cmdk = document.getElementById('cmdk');
+    cmdk.hasAttribute('open') ? closeCmdk() : openCmdk();
+  }
+  if (e.key === 'Escape') {
+    closeDialog();
+    closeCmdk();
+  }
+});
+
+// ─── Toast ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(text = 'Готово') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-text').textContent = text;
+  toast.setAttribute('open', '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.removeAttribute('open'), 2500);
+}
+
+// ─── Node pill toggling ───────────────────────────────────────────
+document.querySelectorAll('.node-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    const pressed = p.getAttribute('aria-pressed') === 'true';
+    p.setAttribute('aria-pressed', !pressed);
+  });
+});
+
+// ─── Smooth scroll for nav ────────────────────────────────────────
+document.querySelectorAll('.nav-item[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('.nav-item').forEach(n => n.removeAttribute('aria-current'));
+      link.setAttribute('aria-current', 'page');
+    }
+  });
+});
+</script>
+
+</body>
+</html>

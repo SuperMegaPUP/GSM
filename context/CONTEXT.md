@@ -34,6 +34,16 @@
 | Основной интерфейс | Web UI (Next.js) |
 | Доп. каналы | Telegram-бот |
 
+## Критические заметки о состоянии
+
+- Sales Copilot 2.0 запущен: `/dashboard/sales-copilot` (новый SalesCopilotChat) + страница поиска масел (старый SalesCopilot)
+- 120 seed-кейсов в Qdrant (9 категорий, включая storage + harmful)
+- LLM на `http://192.168.122.1:1234/v1` (Qwen / DeepSeek / Saiga)
+- AsyncQdrantClient v2: без `.search()`, используем `.query_points()`
+- FTS в hybrid_search требует `await db.rollback()` при ошибке
+- Frontend — Docker-контейнер `oil-frontend:3000`, Nginx upstream
+- `API_URL` для server-side rewrites (не `NEXT_PUBLIC_`)
+
 ## Запреты
 - НЕ использовать проприетарные/заблокированные в РФ сервисы
 - НЕ хардкодить пароли, токены, секреты

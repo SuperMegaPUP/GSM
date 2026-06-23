@@ -5,6 +5,8 @@ import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DailyPlanWidget } from "@/components/DailyPlanWidget";
+import { useSubscriptionStore } from "@/store/subscription-store";
 
 // =============================================================
 // Плитки быстрого доступа
@@ -12,7 +14,7 @@ import { Button } from "@/components/ui/button";
 
 const quickLinks = [
   {
-    href: "/dashboard",
+    href: "/dashboard/search",
     icon: Search,
     title: "Подбор масел",
     description: "Найдите масло по марке, модели и году авто",
@@ -41,7 +43,22 @@ const quickLinks = [
   },
 ];
 
+const statusLabels: Record<string, { label: string; color: string }> = {
+  ACTIVE: { label: "Активна", color: "text-emerald-600" },
+  GRACE_PERIOD: { label: "Истекает", color: "text-amber-600" },
+  SUSPENDED: { label: "Приостановлена", color: "text-red-600" },
+  BLOCKED: { label: "Заблокирована", color: "text-red-700" },
+};
+
 export default function DashboardPage() {
+  const subscription = useSubscriptionStore((s) => s.subscription);
+
+  const statusInfo = subscription
+    ? statusLabels[subscription.status] ?? { label: "—", color: "text-muted-foreground" }
+    : { label: "—", color: "text-muted-foreground" };
+
+  const showPlanWidget = subscription?.status === "ACTIVE" || subscription?.status === "GRACE_PERIOD";
+
   return (
     <div className="space-y-6">
       <div>
@@ -75,6 +92,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Daily Plan Widget */}
+      {showPlanWidget && (
+        <div className="max-w-lg">
+          <DailyPlanWidget />
+        </div>
+      )}
+
       {/* Статистика */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
@@ -104,7 +128,14 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">Активна</p>
+            <p className={`text-2xl font-bold ${statusInfo.color}`}>
+              {statusInfo.label}
+            </p>
+            {subscription && subscription.days_left != null && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {subscription.days_left} {subscription.days_left === 1 ? "день" : "дней"} осталось
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

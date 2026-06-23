@@ -41,6 +41,12 @@ class NodeGroupResult(BaseModel):
     recommendations: list[FluidSearchResult]
 
 
+class EngineVariant(BaseModel):
+    """Информация о варианте двигателя для выбора."""
+    engine_code: str
+    engine_volume: Optional[float] = None
+
+
 class ModelSearchInfo(BaseModel):
     """Информация о найденной модели автомобиля."""
     id: UUID
@@ -51,6 +57,7 @@ class ModelSearchInfo(BaseModel):
     year_end: Optional[int] = None
     variants_count: int = 0
     engine_volumes: list[float] = []
+    engine_variants: list[EngineVariant] = []
 
 
 class SearchResponse(BaseModel):

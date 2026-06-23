@@ -63,9 +63,12 @@
 
 ## Этап 6: Sales Copilot ✅
 
-- [x] 6.1: Векторизация базы возражений в Qdrant
-- [x] 6.2: RAG-поиск + SSE генерация 3 вариантов ответов
-- [x] 6.3: UI-виджет (страница + диалог, копирование в буфер)
+- [x] 6.1: Sales Copilot 2.0 — SSE-стриминг, RAG-indicator, hybrid search (Vector + FTS + RRF)
+- [x] 6.2: 100 seed-кейсов (7 категорий) в PostgreSQL + Qdrant (named vectors "default" + "response")
+- [x] 6.3: Роутер /api/v1/sales/* + таблица sales_interactions
+- [x] 6.4: Frontend SalesCopilotChat.tsx (SSE, 3 варианта, копирование, фидбек)
+- [x] 6.5: Docker-контейнер oil-frontend + Nginx upstream
+- [x] 6.6: +20 seed-кейсов storage + harmful (120 total)
 
 ---
 

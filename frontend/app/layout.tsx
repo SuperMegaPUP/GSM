@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider, themeScript } from "@/components/ui/gsm/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "GSM — Подбор моторных масел",
@@ -14,11 +15,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" data-theme="industrial-warm">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased font-sans">
         <TooltipProvider>
-          {children}
-          <Toaster position="top-right" richColors />
+          <ThemeProvider>
+            {children}
+            <Toaster position="top-right" richColors />
+          </ThemeProvider>
         </TooltipProvider>
       </body>
     </html>

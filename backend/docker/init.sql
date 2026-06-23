@@ -138,7 +138,32 @@ CREATE TABLE recommendations (
 );
 ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
 
--- 3.8 Журнал импортов
+-- 3.8 Подписки (биллинг)
+CREATE TABLE subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE UNIQUE,
+    plan_type VARCHAR(20) NOT NULL DEFAULT 'BASIC',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    end_date TIMESTAMPTZ NOT NULL,
+    grace_period_ends_at TIMESTAMPTZ,
+    monthly_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+    currency VARCHAR(3) NOT NULL DEFAULT 'RUB',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3.9 Планы действий (предиктивная аналитика)
+CREATE TABLE daily_action_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    plan_date DATE NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3.10 Журнал импортов
 CREATE TABLE import_batches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -238,6 +263,8 @@ CREATE INDEX idx_recommendations_variant ON recommendations(car_variant_id);
 CREATE INDEX idx_recommendations_fluid ON recommendations(fluid_id);
 CREATE INDEX idx_recommendations_oem ON recommendations(is_oem_recommendation);
 CREATE INDEX idx_recommendations_company ON recommendations(company_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_recommendations_variant_node_fluid
+ON recommendations (company_id, car_variant_id, node_type, fluid_id);
 
 -- Импорты
 CREATE INDEX idx_imports_company ON import_batches(company_id);

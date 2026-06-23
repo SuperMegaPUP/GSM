@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Search,
@@ -33,132 +32,43 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMe } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { useSubscriptionStore } from "@/store/subscription-store";
+import { GracePeriodBanner } from "@/components/banners/GracePeriodBanner";
+import { SuspendedBanner } from "@/components/banners/SuspendedBanner";
 import { toast } from "sonner";
+
+import {
+  Sidebar,
+  type NavSection,
+} from "@/components/ui/gsm/Sidebar";
+import { PageTransition } from "@/components/ui/gsm/PageTransition";
+import { ThemeSwitcher } from "@/components/ui/gsm/ThemeSwitcher";
+import {
+  CommandPalette,
+  type Command,
+} from "@/components/ui/gsm/CommandPalette";
+import { useTheme } from "@/components/ui/gsm/ThemeProvider";
 
 // =============================================================
 // Навигация
 // =============================================================
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const navItems: NavItem[] = [
-  { href: "/dashboard/search", label: "Подбор масел", icon: Search },
-  { href: "/dashboard/imports", label: "Загрузка каталогов", icon: Upload },
-  { href: "/dashboard/clients", label: "Клиенты", icon: Users },
-  { href: "/dashboard/sales-copilot", label: "AI-Суфлёр", icon: Bot },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Основное",
+    items: [
+      { href: "/dashboard/search", label: "Подбор масел", icon: <Search /> },
+      { href: "/dashboard/imports", label: "Загрузка каталогов", icon: <Upload /> },
+      { href: "/dashboard/clients", label: "Клиенты", icon: <Users /> },
+      { href: "/dashboard/sales-copilot", label: "Sales Copilot", icon: <Bot /> },
+    ],
+  },
 ];
 
-const subscriptionColors: Record<string, string> = {
-  active: "bg-emerald-500",
-  grace_period: "bg-amber-500",
-  suspended: "bg-red-500",
-  blocked: "bg-red-700",
-};
 
-
-
-// =============================================================
-// Боковая панель (десктоп)
-// =============================================================
-
-function Sidebar({ collapsed }: { collapsed: boolean }) {
-  const pathname = usePathname();
-  const user = useAuthStore((s) => s.user);
-
-  return (
-    <aside
-      className={cn(
-        "flex h-full flex-col border-r bg-sidebar transition-all duration-200",
-        collapsed ? "w-16" : "w-56",
-      )}
-    >
-      {/* Логотип */}
-      <div
-        className={cn(
-          "flex h-14 items-center border-b px-4",
-          collapsed ? "justify-center" : "gap-3",
-        )}
-      >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-          G
-        </div>
-        {!collapsed && (
-          <span className="text-sm font-semibold truncate">GSM</span>
-        )}
-      </div>
-
-      {/* Навигация */}
-      <nav className="flex-1 space-y-1 p-2">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return collapsed ? (
-            <Tooltip key={item.href}>
-              <TooltipTrigger
-                render={
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex h-9 w-full items-center justify-center rounded-lg text-sm transition-colors",
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                  </Link>
-                }
-              />
-              <TooltipContent side="right">{item.label}</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex h-9 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-              )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Подпись снизу */}
-      {!collapsed && user && (
-        <div className="border-t p-3">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                subscriptionColors[user.role] || "bg-gray-400",
-              )}
-            />
-            <span className="text-xs text-muted-foreground">
-              {user.full_name}
-            </span>
-          </div>
-        </div>
-      )}
-    </aside>
-  );
-}
 
 // =============================================================
 // Мобильное меню (Sheet)
@@ -171,14 +81,14 @@ function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-          render={
-            <span>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </span>
-          }
-        />
+        render={
+          <span>
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </span>
+        }
+      />
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="border-b px-4 py-3">
           <SheetTitle className="flex items-center gap-2">
@@ -187,10 +97,10 @@ function MobileSidebar() {
           </SheetTitle>
         </SheetHeader>
         <nav className="space-y-1 p-2">
-          {navItems.map((item) => {
+          {NAV_SECTIONS[0].items.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link
+              <a
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
@@ -201,9 +111,9 @@ function MobileSidebar() {
                     : "text-foreground hover:bg-accent/50",
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <span className="[&>svg]:h-4 [&>svg]:w-4">{item.icon}</span>
                 {item.label}
-              </Link>
+              </a>
             );
           })}
         </nav>
@@ -231,7 +141,6 @@ function TopNav({ onToggle }: { collapsed?: boolean; onToggle: () => void }) {
 
   return (
     <header className="flex h-14 items-center gap-4 border-b px-4">
-      {/* Кнопка сворачивания (десктоп) */}
       <Button
         variant="ghost"
         size="icon"
@@ -241,13 +150,15 @@ function TopNav({ onToggle }: { collapsed?: boolean; onToggle: () => void }) {
         <Menu className="h-4 w-4" />
       </Button>
 
-      {/* Мобильное меню */}
       <MobileSidebar />
 
-      {/* Заголовок страницы */}
+      {/* ThemeSwitcher */}
+      <div className="ml-2">
+        <ThemeSwitcher size="sm" />
+      </div>
+
       <div className="flex-1" />
 
-      {/* Профиль */}
       {user && (
         <div className="flex items-center gap-3">
           <Badge
@@ -302,13 +213,86 @@ function TopNav({ onToggle }: { collapsed?: boolean; onToggle: () => void }) {
 }
 
 // =============================================================
+// Команды для CommandPalette
+// =============================================================
+
+function useCommands() {
+  const router = useRouter();
+  const { setTheme } = useTheme();
+
+  const commands: Command[] = [
+    {
+      id: "go-search",
+      title: "Подобрать масло",
+      subtitle: "Перейти к форме подбора",
+      group: "Действия",
+      action: () => router.push("/dashboard/search"),
+      shortcut: "⏎",
+    },
+    {
+      id: "go-imports",
+      title: "Загрузить каталог",
+      subtitle: "Импорт Excel в БД",
+      group: "Действия",
+      action: () => router.push("/dashboard/imports"),
+    },
+    {
+      id: "go-clients",
+      title: "Клиенты",
+      subtitle: "Управление клиентами",
+      group: "Действия",
+      action: () => router.push("/dashboard/clients"),
+    },
+    {
+      id: "go-sales-copilot",
+      title: "Sales Copilot",
+      subtitle: "Отработка возражений",
+      group: "Действия",
+      action: () => router.push("/dashboard/sales-copilot"),
+    },
+    {
+      id: "theme-industrial",
+      title: "Industrial Warm",
+      subtitle: "Тёплая инженерная тема",
+      group: "Тема",
+      action: () => setTheme("industrial-warm"),
+    },
+    {
+      id: "theme-onyx",
+      title: "Onyx Terminal",
+      subtitle: "Тёмная для работы вечером",
+      group: "Тема",
+      action: () => setTheme("onyx-terminal"),
+    },
+    {
+      id: "theme-arctic",
+      title: "Arctic Tech",
+      subtitle: "Минимализм Stripe-стиля",
+      group: "Тема",
+      action: () => setTheme("arctic-tech"),
+    },
+  ];
+
+  return commands;
+}
+
+// =============================================================
 // Основной лэйаут
 // =============================================================
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated, isLoading, setAuth, hydrate } = useAuthStore();
+  const subscription = useSubscriptionStore((s) => s.subscription);
+  const checkStatus = useSubscriptionStore((s) => s.checkStatus);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const commands = useCommands();
+
+  const handleLogout = useCallback(() => {
+    useAuthStore.getState().logout();
+  }, []);
 
   useEffect(() => {
     hydrate();
@@ -321,14 +305,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     if (!user) {
       getMe()
-        .then((u) => setAuth(u, token))
+        .then((u) => {
+          setAuth(u, token);
+          checkStatus();
+        })
         .catch(() => {
           localStorage.removeItem("access_token");
           router.replace("/login");
         });
+    } else {
+      checkStatus();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (subscription && !subscription.is_active && !pathname.startsWith("/billing")) {
+      router.replace("/billing/suspended");
+    }
+  }, [subscription, pathname, router]);
 
   if (isLoading && !user) {
     return (
@@ -342,11 +336,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return null;
   }
 
+  const sidebarUser = user
+    ? {
+        name: user.full_name,
+        role:
+          user.role === "admin"
+            ? "Админ"
+            : user.role === "supervisor"
+              ? "Супервайзер"
+              : user.role === "manager"
+                ? "Менеджер"
+                : "Технолог",
+        initials: user.full_name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2),
+      }
+    : undefined;
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Боковая панель (десктоп) */}
       <div className="hidden md:flex">
-        <Sidebar collapsed={sidebarCollapsed} />
+        <Sidebar
+          sections={NAV_SECTIONS}
+          user={sidebarUser}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((v) => !v)}
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* Основная область */}
@@ -355,8 +375,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((v) => !v)}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <GracePeriodBanner />
+        <SuspendedBanner />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
+
+      {/* Глобальная CommandPalette */}
+      <CommandPalette commands={commands} />
     </div>
   );
 }

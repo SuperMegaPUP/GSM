@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from app.schemas.search_schemas import (
     CarSearchSchema,
+    EngineVariant,
     FluidSearchResult,
     ModelSearchInfo,
     NodeGroupResult,
@@ -114,15 +115,42 @@ async def _search_exact_sql(
             CarVariant.company_id == tenant_id,
             CarVariant.model_id == cm.id,
         )
+        if params.engine_code:
+            variant_count_stmt = variant_count_stmt.where(
+                CarVariant.engine_code.ilike(f"%{params.engine_code}%")
+            )
+        if params.engine_volume:
+            variant_count_stmt = variant_count_stmt.where(
+                CarVariant.engine_volume == params.engine_volume
+            )
         variant_count_result = await db.execute(variant_count_stmt)
-        variant_count = len(variant_count_result.scalars().all())
+        all_variants = variant_count_result.scalars().all()
+        variant_count = len(all_variants)
 
         volumes_stmt = select(CarVariant.engine_volume).where(
             CarVariant.company_id == tenant_id,
             CarVariant.model_id == cm.id,
-        ).distinct()
+        )
+        if params.engine_code:
+            volumes_stmt = volumes_stmt.where(
+                CarVariant.engine_code.ilike(f"%{params.engine_code}%")
+            )
+        if params.engine_volume:
+            volumes_stmt = volumes_stmt.where(
+                CarVariant.engine_volume == params.engine_volume
+            )
+        volumes_stmt = volumes_stmt.distinct()
         volumes_result = await db.execute(volumes_stmt)
         engine_volumes = sorted([v[0] for v in volumes_result.all() if v[0] is not None])
+
+        engine_variants = [
+            EngineVariant(
+                engine_code=v.engine_code,
+                engine_volume=v.engine_volume,
+            )
+            for v in all_variants
+            if v.engine_code
+        ]
         
         models_info.append(ModelSearchInfo(
             id=cm.id,
@@ -133,6 +161,7 @@ async def _search_exact_sql(
             year_end=cm.year_end,
             variants_count=variant_count,
             engine_volumes=engine_volumes,
+            engine_variants=engine_variants,
         ))
 
     # Берём первую модель и первый вариант для отображения в заголовке

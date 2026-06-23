@@ -1,6 +1,54 @@
 
 ---
 
+## Сессия от 2026-06-23_20-10
+
+**Что сделано:**
+
+- *(автоматическая запись — требуется уточнение)*
+
+**Решения:**
+-
+
+**Следующий шаг:**
+-
+
+
+---
+
+## Сессия 3 — 2026-06-23 — Sales Copilot 2.0 + Seed-кейсы
+
+**Стек:** FastAPI 0.115+ / SQLAlchemy 2.0 async / Pydantic V2 / Next.js 14 / Qdrant
+
+**Что сделано:**
+
+- Создана и развёрнута Sales Copilot 2.0: `sales_copilot.py` (SSE-стриминг, 3 варианта последовательно), `hybrid_search.py` (Vector + FTS + RRF + cross-encoder), `embedding.py`, `qdrant_client.py`
+- Созданы роутер `/api/v1/sales/*` и таблица `sales_interactions`
+- Написан seed-скрипт SQL + создана Qdrant collection `sales_objections` с named vectors "default" + "response"
+- Залиты 100 seed-кейсов (7 категорий) в PostgreSQL и Qdrant
+- Создан фронтенд `SalesCopilotChat.tsx` (874 строки, SSE, 3 варианта, копирование, фидбек)
+- Развёрнут Docker-контейнер `oil-frontend` на сети `backend_default`
+- Обновлён Nginx: upstream `frontend` + `location /` прокси
+- Исправлены баги: `API_URL` vs `NEXT_PUBLIC_API_URL`, token key (`token` → `access_token`), `min_length=3` → `1`, 422 на `objection_text` → `objection`
+- FTS-фикс: динамические фильтры вместо `OR :param::cast`, добавлен `await db.rollback()` при ошибке FTS
+- AsyncQdrantClient v2: переход с `.search()` на `.query_points()`
+- Добавлены 20 новых seed-кейсов: 10 storage + 10 harmful (enum + INSERT + Qdrant reseed)
+
+**Решения:**
+- Единая Qdrant collection `sales_objections` вместо per-tenant
+- Named vectors "default" + "response" вместо одного unnamed
+- Три отдельных LLM-вызова вместо одного на 3 варианта
+- API_URL (без `NEXT_PUBLIC_`) для server-side rewrites
+
+**Следующий шаг:**
+- 20 новых seed-кейсов добавлены ✅
+- Проверить старый SalesCopilot на странице поиска масел
+- Установить sentence-transformers для cross-encoder (опционально)
+- Развернуть MCP-сервер (опционально)
+- Этап 8: Биллинг + предиктивная аналитика
+
+---
+
 ## Сессия от 2026-06-19_08-54
 
 **Что сделано:**

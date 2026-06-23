@@ -21,5 +21,23 @@ celery_app.conf.update(
     broker_pool_limit=10,
 )
 
+celery_app.conf.beat_schedule = {
+    "check-subscriptions-daily": {
+        "task": "app.tasks.scheduled_tasks.check_subscriptions_task",
+        "schedule": 86400.0,  # каждый день
+        "args": (),
+    },
+    "suspend-expired-hourly": {
+        "task": "app.tasks.scheduled_tasks.suspend_expired_task",
+        "schedule": 3600.0,  # каждый час
+        "args": (),
+    },
+    "predictive-analytics-daily": {
+        "task": "app.tasks.scheduled_tasks.predictive_analytics_task",
+        "schedule": 86400.0,  # каждый день
+        "args": (),
+    },
+}
+
 celery_app.autodiscover_tasks(["app.tasks"], force=True)
-celery_app.conf.include = ["app.tasks.etl_tasks"]
+celery_app.conf.include = ["app.tasks.etl_tasks", "app.tasks.scheduled_tasks"]

@@ -10,7 +10,7 @@ from redis import asyncio as aioredis
 from app.core.config import settings
 from app.core.database import engine, async_session, text
 from app.core.minio_client import ensure_bucket_exists
-from app.routers import auth, catalog, imports, sales_copilot, search
+from app.routers import analytics, auth, billing, catalog, imports, sales_copilot, search
 
 
 # =============================================================
@@ -89,7 +89,9 @@ class HealthResponse(BaseModel):
 # Роутеры
 # =============================================================
 
+app.include_router(analytics.router)
 app.include_router(auth.router)
+app.include_router(billing.router)
 app.include_router(catalog.router)
 app.include_router(imports.router)
 app.include_router(search.router)

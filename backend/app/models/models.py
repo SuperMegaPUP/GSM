@@ -55,6 +55,12 @@ class SubscriptionStatus(str, enum.Enum):
     blocked = "blocked"
 
 
+class PlanType(str, enum.Enum):
+    BASIC = "BASIC"
+    PRO = "PRO"
+    ENTERPRISE = "ENTERPRISE"
+
+
 class ImportStatus(str, enum.Enum):
     pending = "pending"
     processing = "processing"
@@ -102,6 +108,10 @@ class Company(Base, TimestampMixin):
     # Связи
     users: Mapped[list["User"]] = relationship(
         back_populates="company", cascade="all, delete-orphan"
+    )
+    subscription: Mapped[Optional["Subscription"]] = relationship(
+        "Subscription", back_populates="company", uselist=False,
+        cascade="all, delete-orphan",
     )
 
 

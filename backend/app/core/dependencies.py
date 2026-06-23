@@ -1,7 +1,8 @@
 import uuid
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Callable, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db_session, set_tenant_id, text
 from app.core.security import decode_access_token
 from app.models.models import User
+from app.models.subscription import Subscription, SubscriptionStatus
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -57,3 +59,46 @@ async def get_current_active_user(
         )
 
     return user
+
+
+async def require_active_subscription(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    result = await session.execute(
+        select(Subscription).where(
+            Subscription.company_id == current_user.company_id
+        )
+    )
+    sub = result.scalar_one_or_none()
+
+    if sub is None:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "code": "subscription_not_found",
+                "message": "Подписка не найдена",
+            },
+        )
+
+    if sub.status in (SubscriptionStatus.SUSPENDED, SubscriptionStatus.BLOCKED):
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "code": "subscription_expired",
+                "status": sub.status.value,
+                "message": "Подписка приостановлена. Оплатите для восстановления доступа",
+            },
+        )
+
+    if sub.status == SubscriptionStatus.GRACE_PERIOD:
+        now = datetime.now(timezone.utc)
+        if sub.grace_period_ends_at:
+            grace = sub.grace_period_ends_at.replace(tzinfo=timezone.utc)
+            days_left = max(0, (grace - now).days)
+        else:
+            days_left = 0
+        request.state.grace_days_left = days_left
+
+    return current_user

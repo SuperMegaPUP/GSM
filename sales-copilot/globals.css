@@ -1,0 +1,377 @@
+/* ============================================================================
+ * GSM Design System — Global styles
+ * Pair this with tokens.css (design tokens) and tailwind.config.ts
+ * ============================================================================ */
+
+@import url('./tokens.css');
+
+/* ─── Font loading ─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ─── Base layer ───────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    font-feature-settings: var(--font-feature-settings);
+    font-synthesis: none;
+    transition: background-color var(--duration-base) var(--ease-out),
+                color var(--duration-base) var(--ease-out);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-tight);
+  }
+
+  /* Mono utility — apply to all technical data */
+  .font-mono,
+  code, kbd, samp, pre {
+    font-family: var(--font-mono);
+    font-feature-settings: 'ss02', 'ss05';
+    letter-spacing: var(--tracking-mono);
+  }
+
+  /* Focus visible — only show on keyboard nav */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--primary-muted);
+    color: var(--foreground);
+  }
+
+  /* Scrollbar — themed */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--background);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--sidebar-muted);
+  }
+}
+
+/* ─── Components layer ─────────────────────────────────────────── */
+@layer components {
+  /* ── Brand mark (logo placeholder) ─────────────────────────── */
+  .brand-mark {
+    @apply relative grid place-items-center overflow-hidden rounded-md font-bold;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: var(--primary-foreground);
+    box-shadow: var(--shadow-md), inset 0 1px 0 oklch(1 0 0 / 0.2);
+  }
+  .brand-mark::after {
+    content: '';
+    @apply absolute inset-0;
+    background: radial-gradient(circle at 30% 30%, oklch(1 0 0 / 0.3), transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── Button ────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-all;
+    background: var(--surface-1);
+    color: var(--foreground);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0) scale(0.98); }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-accent {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-accent:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .btn-ghost:hover {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+  }
+
+  .btn-danger {
+    background: var(--destructive);
+    color: oklch(0.99 0 0);
+  }
+  .btn-danger:hover { filter: brightness(1.1); }
+
+  .btn-sm { @apply px-2.5 py-1 text-xs; }
+  .btn-lg { @apply px-6 py-3 text-base; }
+  .btn-icon { @apply aspect-square p-2; }
+
+  /* ── Card ──────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    @apply rounded-lg p-6;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-base) var(--ease-out),
+                transform var(--duration-base) var(--ease-out),
+                border-color var(--duration-base) var(--ease-out);
+  }
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+  }
+
+  /* ── Badge — semantic, not decorative ──────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium uppercase tracking-wide;
+    border-color: transparent;
+    white-space: nowrap;
+  }
+  .badge-oem       { background: var(--success-muted);     color: var(--success);     border-color: var(--success); }
+  .badge-approval  { background: var(--info-muted);        color: var(--info);        border-color: var(--info); }
+  .badge-alternative { background: var(--surface-2);       color: var(--sidebar-muted); border-color: var(--border-strong); }
+  .badge-warning   { background: var(--warning-muted);     color: var(--warning);     border-color: var(--warning); }
+  .badge-danger    { background: var(--destructive-muted); color: var(--destructive); border-color: var(--destructive); }
+  .badge-processing { background: var(--info-muted);       color: var(--info);        border-color: var(--info); }
+  .badge-completed { background: var(--success-muted);     color: var(--success);     border-color: var(--success); }
+
+  /* ── Node pill — 5 groups, not rainbow ─────────────────────── */
+  .node-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-wide;
+    border-color: transparent;
+    white-space: nowrap;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+  .node-pill-engine       { background: var(--node-engine-bg);       color: var(--node-engine);       border-color: var(--node-engine); }
+  .node-pill-transmission { background: var(--node-transmission-bg); color: var(--node-transmission); border-color: var(--node-transmission); }
+  .node-pill-drivetrain   { background: var(--node-drivetrain-bg);   color: var(--node-drivetrain);   border-color: var(--node-drivetrain); }
+  .node-pill-fluids       { background: var(--node-fluids-bg);       color: var(--node-fluids);       border-color: var(--node-fluids); }
+  .node-pill-brakes       { background: var(--node-brakes-bg);       color: var(--node-brakes);       border-color: var(--node-brakes); }
+
+  /* ── Fluid card — the heart of search results ──────────────── */
+  .fluid-card {
+    @apply relative overflow-hidden rounded-lg border p-5;
+    background: var(--surface-1);
+    border-color: var(--border);
+    transition: all var(--duration-base) var(--ease-out);
+  }
+  .fluid-card::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-[3px];
+    background: var(--badge-color, var(--primary));
+    opacity: 0.7;
+  }
+  .fluid-card:hover {
+    border-color: var(--badge-color, var(--primary));
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  /* ── Spec pill — mono technical data ───────────────────────── */
+  .spec-pill {
+    @apply inline-block rounded-sm border px-2 py-0.5 text-xs;
+    font-family: var(--font-mono);
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--foreground);
+    letter-spacing: var(--tracking-mono);
+  }
+  .spec-pill-sae { color: var(--primary); border-color: var(--primary-muted); }
+  .spec-pill-api { color: var(--accent);  border-color: var(--accent-muted); }
+
+  /* ── Input / Select ────────────────────────────────────────── */
+  .input, .select {
+    @apply w-full rounded-md px-3 py-2 text-sm transition-all;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+  }
+  .input:focus, .select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--shadow-glow);
+  }
+  .input::placeholder { color: var(--sidebar-muted); }
+  .input-mono {
+    font-family: var(--font-mono);
+    letter-spacing: var(--tracking-mono);
+  }
+
+  /* ── Field label ───────────────────────────────────────────── */
+  .field-label {
+    @apply text-xs font-medium uppercase tracking-wide;
+    color: var(--foreground);
+  }
+
+  /* ── Progress bar ──────────────────────────────────────────── */
+  .progress {
+    @apply h-2 overflow-hidden rounded-full;
+    background: var(--surface-2);
+    position: relative;
+  }
+  .progress-bar {
+    @apply h-full rounded-full;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transition: width var(--duration-slow) var(--ease-spring);
+    position: relative;
+  }
+  .progress-bar::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.3), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* ── Sidebar nav item ──────────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors;
+    color: var(--sidebar-foreground);
+    position: relative;
+  }
+  .nav-item:hover {
+    background: oklch(1 0 0 / 0.05);
+  }
+  .nav-item[data-active="true"] {
+    background: oklch(1 0 0 / 0.08);
+    color: var(--sidebar-accent);
+  }
+  .nav-item[data-active="true"]::before {
+    content: '';
+    @apply absolute top-1/2 -translate-y-1/2;
+    left: -0.75rem;
+    width: 3px;
+    height: 60%;
+    background: var(--sidebar-accent);
+    border-radius: var(--radius-full);
+  }
+
+  /* ── Stat card (dashboard) ─────────────────────────────────── */
+  .stat {
+    @apply relative overflow-hidden rounded-lg border p-5 transition-all;
+    background: var(--surface-1);
+    border-color: var(--border);
+  }
+  .stat:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+  .stat::after {
+    content: '';
+    @apply absolute top-0 right-0;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle at top right, var(--accent-muted), transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .stat-value {
+    @apply text-3xl font-semibold leading-none;
+    font-family: var(--font-mono);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  /* ── Kbd (keyboard hint) ───────────────────────────────────── */
+  .kbd {
+    @apply inline-block rounded-xs px-1.5 py-0.5 text-xs;
+    font-family: var(--font-mono);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--sidebar-muted);
+  }
+
+  /* ── Skeleton shimmer ──────────────────────────────────────── */
+  .skeleton {
+    @apply overflow-hidden rounded-md;
+    background: var(--surface-2);
+    position: relative;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.4), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+/* ─── Utilities layer ──────────────────────────────────────────── */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+
+  /* Gradient text — for hero titles */
+  .text-gradient {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Glow — for focus / hover emphasis */
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Theme transition — apply to body to avoid flashes */
+  .theme-transition {
+    transition: background-color var(--duration-base) var(--ease-out),
+                color var(--duration-base) var(--ease-out),
+                border-color var(--duration-base) var(--ease-out);
+  }
+}

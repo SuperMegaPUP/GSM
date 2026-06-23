@@ -41,9 +41,10 @@ export async function streamObjectionResponse(
   onDone: (variants: ObjectionResponse[]) => void,
   onError: (error: string) => void,
 ): Promise<void> {
+  let timeoutId: NodeJS.Timeout | undefined;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+    timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
 
     const response = await fetch("/api/v1/sales/handle-objection", {
       signal: controller.signal,
@@ -53,7 +54,7 @@ export async function streamObjectionResponse(
         Authorization: `Bearer ${localStorage.getItem("access_token")}`,
       },
       body: JSON.stringify({
-        objection_text: objectionText,
+        objection: objectionText,
         context: context || undefined,
       }),
     });
@@ -137,14 +138,14 @@ export async function streamObjectionResponse(
       }
     }
 
-    clearTimeout(timeoutId);
+    if (timeoutId) clearTimeout(timeoutId);
 
     // Если стрим завершился без done — ошибка
     if (!receivedDone) {
       onError("Соединение прервано до получения полного ответа");
     }
   } catch (err: unknown) {
-    clearTimeout(timeoutId);
+    if (timeoutId) clearTimeout(timeoutId);
     if (err instanceof DOMException && err.name === "AbortError") {
       onError("Таймаут: модель не ответила за 5 минут");
     } else {

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db_session
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.models import User, Company
+from app.models.subscription import Subscription, PlanType, SubscriptionStatus
 from app.schemas.schemas import (
     LoginRequest,
     TokenResponse,
@@ -68,6 +70,19 @@ async def register(
     )
     session.add(company)
     await session.flush()
+
+    now = datetime.utcnow()
+    trial_end = now + timedelta(days=30)
+    subscription = Subscription(
+        company_id=company.id,
+        plan_type=PlanType.BASIC,
+        status=SubscriptionStatus.ACTIVE,
+        start_date=now,
+        end_date=trial_end,
+        monthly_price=0,
+        currency="RUB",
+    )
+    session.add(subscription)
 
     user = User(
         email=body.email,

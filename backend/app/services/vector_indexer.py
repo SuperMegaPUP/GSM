@@ -159,6 +159,7 @@ async def index_recommendations_to_qdrant(
     tenant_id: UUID,
     db: AsyncSession,
     qdrant_client: AsyncQdrantClient,
+    rec_ids: Optional[list[UUID]] = None,
 ) -> int:
     collection = _collection_name(tenant_id)
     await _ensure_collection(qdrant_client, collection, settings.embedding_dim)
@@ -173,6 +174,12 @@ async def index_recommendations_to_qdrant(
         )
         .where(Recommendation.company_id == tenant_id)
     )
+    if rec_ids is not None:
+        if not rec_ids:
+            logger.info("Нет новых рекомендаций — индексация Qdrant пропущена")
+            return 0
+        stmt = stmt.where(Recommendation.id.in_(rec_ids))
+
     result = await db.execute(stmt)
     recs: list[Recommendation] = list(result.unique().scalars().all())
 

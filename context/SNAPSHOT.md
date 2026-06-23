@@ -1,7 +1,7 @@
 # SNAPSHOT.md — Текущее состояние проекта
 
-**Дата:** 2026-06-19
-**Статус:** MVP полностью готов — Все 7 этапов выполнены
+**Дата:** 2026-06-23
+**Статус:** MVP + Sales Copilot 2.0 (RAG-indicator + hybrid search) — 120 seed-кейсов
 
 ## Что сделано
 
@@ -43,17 +43,26 @@
 - [x] `app/services/search_engine.py` — SQL + Qdrant fallback, поиск по ВСЕМ моделям
 - [x] `app/routers/search.py` — POST /api/v1/search/oils с JWT
 
-### Этап 6: Sales Copilot (RAG + LLM)
-- [x] `app/services/sales_indexer.py` — index_sales_objections() в Qdrant
-- [x] `app/services/sales_copilot.py` — RAG + LLM prompt + SSE streaming, 3 стиля
-- [x] `app/routers/sales_copilot.py` — POST /handle-objection (SSE), POST /upload-knowledge
+### Этап 6: Sales Copilot 2.0 (RAG + LLM + hybrid search)
+- [x] `app/services/sales_copilot.py` — RAG + LLM prompt + SSE streaming, 3 варианта (последовательно)
+- [x] `app/services/hybrid_search.py` — Vector + FTS + RRF + cross-encoder (исправлен FTS + rollback)
+- [x] `app/services/embedding.py` — обёртка эмбеддингов (OpenAI-совместимые)
+- [x] `app/services/qdrant_client.py` — Qdrant client singleton (AsyncQdrantClient v2, `.query_points()`)
+- [x] `app/routers/sales_copilot.py` — POST /handle-objection (SSE), POST /feedback, GET /cases, GET /stats
+- [x] `app/schemas/sales_schemas.py` — Pydantic схемы (min_length=1)
+- [x] `context/SALES_COPILOT_SUMMARY.md` — полный свод
+- [x] **100 seed-кейсов** (7 категорий) в PostgreSQL + Qdrant (named vectors "default" + "response")
+- [x] **+20 seed-кейсов** storage + harmful (120 total) — добавлены 2026-06-23
 
-### Этап 7: Frontend (Next.js 14)
+### Этап 7: Frontend (Next.js 14 + Docker)
 - [x] shadcn/ui v4, Zustand, Axios, JWT-перехватчик, Pydantic error normalisation
 - [x] Login, Dashboard layout (Sidebar + TopNav), search, imports, sales-copilot
 - [x] Search: фильтры по бренду/модели/году/двигателю, результаты по node_type, модель-селектор
 - [x] Imports: Drag&Drop загрузка, polling прогресса, история из API
-- [x] Sales Copilot: SSE streaming, 3 варианта, copy-to-clipboard
+- [x] Sales Copilot Chat (новый): `SalesCopilotChat.tsx` (874 строки, SSE, 3 варианта, копирование, фидбек)
+- [x] Sales Copilot (старый): `SalesCopilot.tsx` + `sse-client.ts` — используется на странице поиска масел
+- [x] Docker-контейнер `oil-frontend` на сети `backend_default` (Nginx upstream)
+- [x] Исправления: `API_URL` вместо `NEXT_PUBLIC_API_URL`, token key `access_token`, `min_length=1`, 422 `objection`
 
 ### Контекст проекта
 - [x] `context/` — 10 .md файлов (RULES, ARCHITECTURE, BACKLOG, SNAPSHOT, WORKLOG, HISTORY, VERSIONING, CONTEXT, RITUALS, TEMPLATES)
@@ -92,9 +101,8 @@
 
 ## Следующая задача
 
-1. Исправить seed admin пароль в docker/init.sql
-2. Подключить реальный LLM (Ollama/vLLM)
-3. Установить sentence-transformers в контейнер для Qdrant векторизации
-4. Страница /dashboard/clients
-5. Unit-тесты для ETL и поиска
-6. Phase 8: Billing + predictive analytics
+1. Установить sentence-transformers для cross-encoder re-ranker (опционально)
+2. Развернуть MCP-сервер (опционально, для Claude Desktop)
+3. Страница /dashboard/clients
+4. Unit-тесты для ETL, поиска и Sales Copilot
+5. Этап 8: Billing + predictive analytics

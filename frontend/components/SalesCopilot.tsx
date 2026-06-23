@@ -21,7 +21,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/gsm/Dialog";
 import { streamObjectionResponse, type ObjectionResponse } from "@/lib/sse-client";
 
 // =============================================================
