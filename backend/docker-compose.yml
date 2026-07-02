@@ -164,6 +164,8 @@ services:
       dockerfile: Dockerfile
     container_name: oil-celery-beat
     restart: unless-stopped
+    healthcheck:
+      disable: true
     environment:
       APP_NAME: "Oil Expert SaaS MVP"
       DB_HOST: postgres

@@ -328,12 +328,24 @@
     color: var(--destructive);
     border-color: var(--destructive);
   }
-  .action-btn--used {
-    background: var(--surface-3);
-    color: var(--foreground);
-    border-color: var(--border-strong);
-    opacity: 0.6;
+  .action-btn--used-positive {
+    background: var(--success-muted);
+    color: var(--success);
+    border-color: var(--success);
+    opacity: 0.9;
     cursor: default;
+  }
+  .action-btn--used-negative {
+    background: var(--destructive-muted);
+    color: var(--destructive);
+    border-color: var(--destructive);
+    opacity: 0.9;
+    cursor: default;
+  }
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .context-chip {

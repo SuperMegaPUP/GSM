@@ -1,9 +1,8 @@
 import uuid
-from datetime import date, datetime
-from typing import Optional
+from datetime import date
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, String, text
+from sqlalchemy import ForeignKey, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,3 +24,19 @@ class DailyActionPlan(Base, TimestampMixin):
         default=list,
         server_default=text("'[]'::jsonb"),
     )
+
+
+class DailyTrend(Base, TimestampMixin):
+    __tablename__ = "daily_trends"
+    __table_args__ = (
+        UniqueConstraint("company_id", "date", "metric"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trend_date: Mapped[date] = mapped_column("date", nullable=False)
+    metric: Mapped[str] = mapped_column(nullable=False)
+    value: Mapped[dict] = mapped_column(JSONB, nullable=False)

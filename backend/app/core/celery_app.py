@@ -37,6 +37,11 @@ celery_app.conf.beat_schedule = {
         "schedule": 86400.0,  # каждый день
         "args": (),
     },
+    "compute-trends-daily": {
+        "task": "app.tasks.scheduled_tasks.compute_trends_task",
+        "schedule": 86400.0,  # каждый день
+        "args": (),
+    },
 }
 
 celery_app.autodiscover_tasks(["app.tasks"], force=True)

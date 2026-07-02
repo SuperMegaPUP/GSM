@@ -7,6 +7,7 @@ import {
   Upload,
   Users,
   Bot,
+  BarChart3,
   Menu,
   LogOut,
   ChevronDown,
@@ -64,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard/imports", label: "Загрузка каталогов", icon: <Upload /> },
       { href: "/dashboard/clients", label: "Клиенты", icon: <Users /> },
       { href: "/dashboard/sales-copilot", label: "Sales Copilot", icon: <Bot /> },
+      { href: "/dashboard/analytics", label: "Аналитика", icon: <BarChart3 /> },
     ],
   },
 ];

@@ -51,5 +51,6 @@ class StatsResponse(BaseModel):
     seed_count: int
     total_used: int
     total_won: int
+    total_lost: int
     avg_success_rate: Optional[float]
     needs_review_count: int

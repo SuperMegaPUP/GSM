@@ -31,6 +31,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { toast } from 'sonner';
 
 // ─── Types ──────────────────────────────────────────────────────
 interface User {
@@ -341,12 +342,17 @@ export function SalesCopilotChat({
   );
 
   // ─── Feedback (RLHF) ────────────────────────────────────────
+  const submittedRef = useRef<Set<string>>(new Set());
+
   const logFeedback = useCallback(
     async (caseId: string, positive: boolean) => {
-      // Optimistic UI
+      const key = `${caseId}-${positive}`;
+      if (submittedRef.current.has(key)) return;
+      submittedRef.current.add(key);
+
       setFeedbackLogged((prev) => ({
         ...prev,
-        [`${caseId}-${positive}`]: positive ? 'positive' : 'negative',
+        [key]: positive ? 'positive' : 'negative',
       }));
 
       try {
@@ -360,8 +366,11 @@ export function SalesCopilotChat({
             outcome: positive ? 'closed_won' : 'closed_lost',
           }),
         });
+        toast.success(positive ? 'Сработало ✓' : 'Не сработало ✗');
       } catch (e) {
         console.warn('Failed to log feedback:', e);
+        toast.error('Ошибка при сохранении');
+        submittedRef.current.delete(key);
       }
     },
     [feedbackUrl],
@@ -764,28 +773,41 @@ function ResponseVariantCard({
           </button>
           {variant.case_ids.length > 0 && (
             <span className="flex gap-1.5">
-              <button
-                onClick={() => variant.case_ids.forEach((cid) => onFeedback(cid, true))}
-                className={`action-btn action-btn--positive ${
-                  variant.case_ids.some((cid) => feedbackLogged[`${cid}-true`] === 'positive') ? 'action-btn--used' : ''
-                }`}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M7 10v12M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
-                </svg>
-                Сработало
-              </button>
-              <button
-                onClick={() => variant.case_ids.forEach((cid) => onFeedback(cid, false))}
-                className={`action-btn action-btn--negative ${
-                  variant.case_ids.some((cid) => feedbackLogged[`${cid}-false`] === 'negative') ? 'action-btn--used' : ''
-                }`}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
-                </svg>
-                Не сработало
-              </button>
+              {(() => {
+                const anyFeedback = variant.case_ids.some(
+                  (cid) => feedbackLogged[`${cid}-true`] === 'positive' || feedbackLogged[`${cid}-false`] === 'negative'
+                );
+                const positiveUsed = variant.case_ids.some((cid) => feedbackLogged[`${cid}-true`] === 'positive');
+                const negativeUsed = variant.case_ids.some((cid) => feedbackLogged[`${cid}-false`] === 'negative');
+                return (
+                  <>
+                    <button
+                      onClick={() => onFeedback(variant.case_ids[0], true)}
+                      disabled={anyFeedback}
+                      className={`action-btn action-btn--positive ${
+                        positiveUsed ? 'action-btn--used-positive' : ''
+                      }`}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M7 10v12M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
+                      </svg>
+                      Сработало
+                    </button>
+                    <button
+                      onClick={() => onFeedback(variant.case_ids[0], false)}
+                      disabled={anyFeedback}
+                      className={`action-btn action-btn--negative ${
+                        negativeUsed ? 'action-btn--used-negative' : ''
+                      }`}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
+                      </svg>
+                      Не сработало
+                    </button>
+                  </>
+                );
+              })()}
             </span>
           )}
         </div>
@@ -798,11 +820,85 @@ function ResponseVariantCard({
 // Side Panel (stats + case preview + RLHF queue)
 // ============================================================================
 
+interface CaseDetails {
+  id: string;
+  number: number | null;
+  category: string;
+  category_label: string;
+  objection_text: string;
+  response_text: string;
+  tags: string[];
+  usage_count: number;
+  success_count: number;
+  failure_count: number;
+  success_rate: number;
+  is_seed: boolean;
+  source: string;
+  car_brand: string | null;
+  fluid_type: string | null;
+}
+
 function SidePanel({
   selectedCaseId,
 }: {
   selectedCaseId: string | null;
 }) {
+  const [details, setDetails] = useState<CaseDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState<{
+    total: number;
+    total_used: number;
+    total_won: number;
+    total_lost: number;
+    avg_success_rate: number | null;
+  } | null>(null);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+
+  useEffect(() => {
+    if (!selectedCaseId) { setDetails(null); return; }
+
+    let cancelled = false;
+    setLoading(true);
+
+    fetch(`/api/v1/sales/objection-cases/${selectedCaseId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) {
+          setDetails(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedCaseId, token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/v1/sales/objection-cases/stats', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setStats(data);
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const s = stats;
+  const convRate =
+    s && s.total_used > 0
+      ? `${((s.total_won / s.total_used) * 100).toFixed(0)}%`
+      : '—';
+
   return (
     <aside className="flex flex-col gap-4">
       <div className="rounded-lg border bg-[var(--surface-1)] p-4">
@@ -813,22 +909,39 @@ function SidePanel({
           Статистика сессии
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: 'Кейсов в базе', value: '100', delta: '+0 сегодня' },
-            { label: 'Средний success', value: '68%', delta: '↑ +4% за неделю' },
-            { label: 'Использовано', value: '847', delta: '↑ +12 за день' },
-            { label: 'Сработало', value: '572', delta: '67% конверсия' },
-          ].map((s) => (
-            <div key={s.label} className="rounded-md bg-[var(--surface-2)] p-2.5">
-              <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
-                {s.label}
-              </div>
-              <div className="font-mono text-lg font-semibold leading-none">
-                {s.value}
-              </div>
-              <div className="mt-0.5 text-[10px] text-[var(--success)]">{s.delta}</div>
+          <div className="rounded-md bg-[var(--surface-2)] p-2.5">
+            <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
+              Кейсов в базе
             </div>
-          ))}
+            <div className="font-mono text-lg font-semibold leading-none">
+              {s?.total ?? '—'}
+            </div>
+          </div>
+          <div className="rounded-md bg-[var(--surface-2)] p-2.5">
+            <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
+              Средний success
+            </div>
+            <div className="font-mono text-lg font-semibold leading-none">
+              {s?.avg_success_rate != null ? `${(s.avg_success_rate * 100).toFixed(0)}%` : '—'}
+            </div>
+          </div>
+          <div className="rounded-md bg-[var(--surface-2)] p-2.5">
+            <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
+              Использовано
+            </div>
+            <div className="font-mono text-lg font-semibold leading-none">
+              {s?.total_used ?? '—'}
+            </div>
+          </div>
+          <div className="rounded-md bg-[var(--surface-2)] p-2.5">
+            <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
+              Сработало
+            </div>
+            <div className="font-mono text-lg font-semibold leading-none">
+              {s ? `${s.total_won}` : '—'}
+            </div>
+            <div className="mt-0.5 text-[10px] text-[var(--success)]">{convRate}</div>
+          </div>
         </div>
       </div>
 
@@ -841,11 +954,57 @@ function SidePanel({
           Кейс в фокусе
         </div>
         <div className="text-xs">
-          {selectedCaseId ? (
-            <div>Выбран: <span className="font-mono">{selectedCaseId}</span></div>
-          ) : (
+          {!selectedCaseId ? (
             <div className="text-[var(--sidebar-muted)]">
               Нажми на кейс в RAG-индикаторе, чтобы увидеть детали.
+            </div>
+          ) : loading ? (
+            <div className="text-[var(--sidebar-muted)]">Загрузка...</div>
+          ) : !details ? (
+            <div className="text-[var(--sidebar-muted)]">Кейс не найден</div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--sidebar-muted)]">
+                  Категория
+                </div>
+                <div>{details.category_label}</div>
+              </div>
+              {details.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {details.tags.map((t) => (
+                    <span key={t} className="rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] text-[var(--sidebar-muted)]">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--sidebar-muted)]">
+                  Возражение
+                </div>
+                <div className="leading-relaxed">{details.objection_text}</div>
+              </div>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--sidebar-muted)]">
+                  Ответ
+                </div>
+                <div className="leading-relaxed">{details.response_text}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 rounded-md bg-[var(--surface-2)] p-2">
+                <div className="text-center">
+                  <div className="text-sm font-bold">{details.usage_count}</div>
+                  <div className="text-[10px] text-[var(--sidebar-muted)]">Использовано</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-bold text-green-600">{details.success_count}</div>
+                  <div className="text-[10px] text-[var(--sidebar-muted)]">Успешно</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-bold text-red-600">{details.failure_count}</div>
+                  <div className="text-[10px] text-[var(--sidebar-muted)]">Неудачно</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
