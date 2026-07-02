@@ -1,25 +1,32 @@
 'use client';
 
-/**
- * GSM Design System — FluidCard
- *
- * The core card for displaying oil/fluid recommendation in search results.
- * Visual cues:
- *   - Left border color encodes recommendation type (OEM/approval/alternative)
- *   - Spec pills use mono font for technical credibility
- *   - Hover lifts card and emphasizes border
- */
-
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
-export type RecommendationType = 'oem' | 'approval' | 'alternative';
+const RANK_CONFIG: Record<number, { label: string; cssClass: string }> = {
+  1: { label: 'Основное', cssClass: 'fluid-card--rank-1' },
+  2: { label: 'Alt 1', cssClass: 'fluid-card--rank-2' },
+  3: { label: 'Alt 2', cssClass: 'fluid-card--rank-3' },
+};
+
+function rankClass(rank: number): string {
+  const cfg = RANK_CONFIG[rank];
+  if (cfg) return cfg.cssClass;
+  return 'fluid-card--rank-n';
+}
+
+function rankLabel(rank: number): string {
+  const cfg = RANK_CONFIG[rank];
+  if (cfg) return cfg.label;
+  return `Сноска (${rank})`;
+}
 
 interface FluidCardProps {
   brand: string;
   name: string;
-  type: RecommendationType;
+  recommendationRank: number;
   specs: { label: string; kind?: 'sae' | 'api' | 'default' }[];
+  conditions?: string[];
   volume?: string;
   volumeWithFilter?: string;
   extra?: ReactNode;
@@ -27,40 +34,18 @@ interface FluidCardProps {
   index?: number;
 }
 
-const TYPE_CONFIG: Record<
-  RecommendationType,
-  { badgeClass: string; badgeText: string; borderColor: string }
-> = {
-  oem: {
-    badgeClass: 'badge-oem',
-    badgeText: 'Оригинал',
-    borderColor: 'var(--success)',
-  },
-  approval: {
-    badgeClass: 'badge-approval',
-    badgeText: 'Допуск OEM',
-    borderColor: 'var(--info)',
-  },
-  alternative: {
-    badgeClass: 'badge-alternative',
-    badgeText: 'Аналог',
-    borderColor: 'var(--sidebar-muted)',
-  },
-};
-
 export function FluidCard({
   brand,
   name,
-  type,
+  recommendationRank,
   specs,
+  conditions,
   volume,
   volumeWithFilter,
   extra,
   onClick,
   index = 0,
 }: FluidCardProps) {
-  const cfg = TYPE_CONFIG[type];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -71,17 +56,19 @@ export function FluidCard({
         ease: [0.16, 1, 0.3, 1],
       }}
       onClick={onClick}
-      className="fluid-card cursor-pointer"
-      style={{ '--badge-color': cfg.borderColor } as React.CSSProperties}
+      className={`fluid-card cursor-pointer ${rankClass(recommendationRank)}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--sidebar-muted)]">
             {brand}
           </div>
-          <h3 className="text-base font-semibold tracking-tight">{name}</h3>
+          <h3 className="text-base font-semibold tracking-tight truncate">{name}</h3>
         </div>
-        <span className={`badge ${cfg.badgeClass}`}>{cfg.badgeText}</span>
+        <span className={`rank-badge ${rankClass(recommendationRank)}`}>
+          {recommendationRank === 1 && <span className="rank-badge-star">★</span>}
+          {rankLabel(recommendationRank)}
+        </span>
       </div>
 
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -101,8 +88,16 @@ export function FluidCard({
         ))}
       </div>
 
+      {conditions && conditions.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {conditions.map((cond, i) => (
+            <span key={i} className="condition-chip">{cond}</span>
+          ))}
+        </div>
+      )}
+
       {(volume || volumeWithFilter) && (
-        <div className="mt-2 border-t border-dashed border-[var(--border)] pt-3 font-mono text-sm font-medium">
+        <div className="border-t border-dashed border-[var(--border)] pt-3 font-mono text-sm font-medium">
           {volume && (
             <>
               <span className="mr-2 font-sans font-normal text-[var(--sidebar-muted)]">

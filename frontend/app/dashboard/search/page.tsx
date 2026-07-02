@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-import { FluidCard, type RecommendationType } from "@/components/ui/gsm/FluidCard";
+import { FluidCard } from "@/components/ui/gsm/FluidCard";
 import { NODE_CONFIG, NodeIcon, type NodeType } from "@/components/ui/gsm/nodeTypes";
+import { VehicleTypeTabs, type VehicleType } from "@/components/ui/gsm/VehicleTypeTabs";
+import { SidePanel } from "@/components/ui/gsm/SidePanel";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,10 +29,6 @@ import {
   ComboboxItem,
   ComboboxEmpty,
 } from "@/components/ui/combobox";
-
-// =============================================================
-// Типы данных (соответствуют backend/app/schemas/search_schemas.py)
-// =============================================================
 
 interface FluidSearchResult {
   fluid_id: string;
@@ -88,30 +86,6 @@ interface SearchResponse {
   models: ModelSearchInfo[];
 }
 
-// =============================================================
-// Маппинг node_type на иконки и лейблы вкладок
-// =============================================================
-
-
-
-// =============================================================
-// Компонент карточки масла
-// =============================================================
-
-const RANK_CONFIG: Record<number, { label: string; badgeClass: string }> = {
-  1: { label: 'Рекомендуется', badgeClass: 'badge-oem' },
-  2: { label: 'Альтернатива 1', badgeClass: 'badge-approval' },
-  3: { label: 'Альтернатива 2', badgeClass: 'badge-alternative' },
-};
-
-function RankBadge({ rank }: { rank: number }) {
-  const cfg = RANK_CONFIG[rank];
-  if (cfg) {
-    return <span className={`badge ${cfg.badgeClass}`}>{cfg.label}</span>;
-  }
-  return <span className="badge badge-alternative">Сноска ({rank})</span>;
-}
-
 function FluidCardWrapper({ fluid }: { fluid: FluidSearchResult }) {
   const [copilotOpen, setCopilotOpen] = useState(false);
 
@@ -119,29 +93,27 @@ function FluidCardWrapper({ fluid }: { fluid: FluidSearchResult }) {
     .filter(Boolean)
     .join(", ");
 
-  const recType: RecommendationType = fluid.is_oem_recommendation
-    ? 'oem'
-    : fluid.oem_approvals.length > 0
-      ? 'approval'
-      : 'alternative';
-
   const specs: { label: string; kind?: 'sae' | 'api' | 'default' }[] = [];
   if (fluid.viscosity_sae) specs.push({ label: fluid.viscosity_sae, kind: 'sae' });
   if (fluid.api_class) specs.push({ label: fluid.api_class, kind: 'api' });
   if (fluid.acea_class) specs.push({ label: fluid.acea_class });
+
+  const conditions = fluid.applicability_conditions
+    ? Object.values(fluid.applicability_conditions).filter(Boolean).map(String)
+    : undefined;
 
   return (
     <>
       <FluidCard
         brand={fluid.brand || ''}
         name={fluid.product_line || fluid.canonical_name}
-        type={recType}
+        recommendationRank={fluid.recommendation_rank}
         specs={specs}
+        conditions={conditions}
         volume={fluid.volume_liters !== null ? `${fluid.volume_liters} L` : undefined}
         volumeWithFilter={fluid.volume_with_filter !== null ? `${fluid.volume_with_filter} L` : undefined}
         extra={
-          <div className="space-y-2">
-            <RankBadge rank={fluid.recommendation_rank} />
+          <div>
             <Button
               variant="outline"
               size="sm"
@@ -165,18 +137,24 @@ function FluidCardWrapper({ fluid }: { fluid: FluidSearchResult }) {
   );
 }
 
-// =============================================================
-// Компонент формы поиска
-// =============================================================
+const FIELDS_FOR_TYPE: Record<VehicleType, string[]> = {
+  passenger_car: ['brand', 'model', 'year', 'engine_code', 'body_code', 'engine_volume'],
+  heavy_truck: ['brand', 'model', 'year'],
+  heavy_equipment: ['brand', 'model', 'year', 'equip_type', 'power_kw', 'mass_kg'],
+  motorcycle: ['brand', 'model', 'year', 'engine_cc', 'moto_type'],
+  small_engine: ['brand', 'model', 'year', 'equip_type', 'engine_cc'],
+};
 
 function SearchForm({
   onSearch,
   onReset,
   loading,
+  vehicleType,
 }: {
   onSearch: (params: Record<string, string | number>) => void;
   onReset?: () => void;
   loading: boolean;
+  vehicleType: VehicleType;
 }) {
   const [brand, setBrand] = useState("");
   const [brandId, setBrandId] = useState<string | null>(null);
@@ -184,19 +162,17 @@ function SearchForm({
   const [year, setYear] = useState("");
   const [engineCode, setEngineCode] = useState("");
   const [engineVolume, setEngineVolume] = useState("");
+  const [bodyCode, setBodyCode] = useState("");
 
-  // Данные для автоподбора
   const [brandItems, setBrandItems] = useState<CarBrandRead[]>([]);
   const [modelItems, setModelItems] = useState<CarModelRead[]>([]);
   const brandTimer = useRef<NodeJS.Timeout>();
   const modelTimer = useRef<NodeJS.Timeout>();
 
-  // Загружаем марки при монтировании
   useEffect(() => {
     getBrands(undefined, 200).then((res) => setBrandItems(res.items));
   }, []);
 
-  // Загружаем модели при выборе марки
   useEffect(() => {
     if (brandId) {
       getModels(brandId, undefined, 200).then((res) => setModelItems(res.items));
@@ -239,6 +215,7 @@ function SearchForm({
     if (year.trim()) params.year = parseInt(year.trim(), 10);
     if (engineCode.trim()) params.engine_code = engineCode.trim();
     if (engineVolume.trim()) params.engine_volume = parseFloat(engineVolume.trim());
+    if (bodyCode.trim()) params.body_code = bodyCode.trim();
 
     if (Object.keys(params).length === 0) {
       toast.error("Укажите хотя бы один параметр поиска (марка, модель, год или код двигателя)");
@@ -255,8 +232,11 @@ function SearchForm({
     setYear("");
     setEngineCode("");
     setEngineVolume("");
+    setBodyCode("");
     onReset?.();
   };
+
+  const visible = FIELDS_FOR_TYPE[vehicleType] || [];
 
   return (
     <Card>
@@ -269,8 +249,7 @@ function SearchForm({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Марка */}
-            <div className="space-y-2">
+            <div className="space-y-2 field">
               <Label htmlFor="brand-combobox">Марка</Label>
               <ComboboxRoot value={brand} onValueChange={handleBrandValueChange} onInputValueChange={handleBrandSearch}>
                 <ComboboxControl id="brand-combobox">
@@ -289,8 +268,7 @@ function SearchForm({
               </ComboboxRoot>
             </div>
 
-            {/* Модель */}
-            <div className="space-y-2">
+            <div className="space-y-2 field">
               <Label htmlFor="model-combobox">Модель</Label>
               <ComboboxRoot
                 value={model}
@@ -317,8 +295,7 @@ function SearchForm({
               </ComboboxRoot>
             </div>
 
-            {/* Год */}
-            <div className="space-y-2">
+            <div className="space-y-2 field">
               <Label htmlFor="year">Год выпуска</Label>
               <Input
                 id="year"
@@ -331,8 +308,7 @@ function SearchForm({
               />
             </div>
 
-            {/* Код двигателя */}
-            <div className="space-y-2">
+            <div className={`space-y-2 field ${!visible.includes('engine_code') ? 'field--hidden' : ''}`}>
               <Label htmlFor="engine_code">Код двигателя</Label>
               <Input
                 id="engine_code"
@@ -342,8 +318,17 @@ function SearchForm({
               />
             </div>
 
-            {/* Объём двигателя */}
-            <div className="space-y-2">
+            <div className={`space-y-2 field ${!visible.includes('body_code') ? 'field--hidden' : ''}`}>
+              <Label htmlFor="body_code">Код кузова</Label>
+              <Input
+                id="body_code"
+                placeholder="WBA3A5..."
+                value={bodyCode}
+                onChange={(e) => setBodyCode(e.target.value)}
+              />
+            </div>
+
+            <div className={`space-y-2 field ${!visible.includes('engine_volume') ? 'field--hidden' : ''}`}>
               <Label htmlFor="engine_volume">Объём двигателя (л)</Label>
               <Input
                 id="engine_volume"
@@ -380,10 +365,6 @@ function SearchForm({
   );
 }
 
-// =============================================================
-// Компонент пустого состояния
-// =============================================================
-
 function EmptyState() {
   return (
     <Card>
@@ -400,10 +381,6 @@ function EmptyState() {
     </Card>
   );
 }
-
-// =============================================================
-// Компонент скелетона загрузки
-// =============================================================
 
 function LoadingSkeleton() {
   return (
@@ -439,10 +416,6 @@ function LoadingSkeleton() {
   );
 }
 
-// =============================================================
-// Основной компонент страницы поиска
-// =============================================================
-
 export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResponse | null>(null);
@@ -450,6 +423,7 @@ export default function SearchPage() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [activeNodeTab, setActiveNodeTab] = useState<string>("ENGINE");
   const [lastSearchParams, setLastSearchParams] = useState<Record<string, string | number>>({});
+  const [vehicleType, setVehicleType] = useState<VehicleType>("passenger_car");
 
   const handleReset = () => {
     setResults(null);
@@ -494,7 +468,7 @@ export default function SearchPage() {
     try {
       const response = await api.post<SearchResponse>("/search/oils", params);
       setResults(response.data);
-} catch (err: unknown) {
+    } catch (err: unknown) {
       const axiosErr = err as Error & { response?: { data?: Record<string, unknown> } };
       const errRecord = axiosErr as unknown as Record<string, unknown>;
       const detail =
@@ -518,7 +492,6 @@ export default function SearchPage() {
       } else {
         message = axiosErr.message || "Ошибка при поиске масел";
       }
-      // Гарантируем, что message — строка (не объект!)
       if (typeof message !== "string") {
         message = String(message);
       }
@@ -531,7 +504,6 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Подбор масел</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -539,240 +511,249 @@ export default function SearchPage() {
         </p>
       </div>
 
-      {/* Форма поиска */}
-      <SearchForm onSearch={handleSearch} onReset={handleReset} loading={loading} />
+      <VehicleTypeTabs value={vehicleType} onChange={(v) => { setVehicleType(v); handleReset(); }} />
 
-      {/* Ошибка */}
-      {error && (
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-600">{error}</p>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+        <div className="space-y-6 min-w-0">
+          <SearchForm
+            onSearch={handleSearch}
+            onReset={handleReset}
+            loading={loading}
+            vehicleType={vehicleType}
+          />
 
-      {/* Результаты */}
-      {loading && <LoadingSkeleton />}
-
-      {!loading && results && results.groups.length > 0 && (
-        <div className="space-y-4">
-          {/* Информация о найденном варианте */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                {results.models.length > 1 ? (
-                  <>
-                    <span className="font-semibold">{results.brand}</span>
-                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                      🚗 {results.models.length} моделей
-                    </Badge>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold">
-                      {results.brand} {results.model}
-                    </span>
-                    {results.engine_code && (
-                      <Badge variant="outline">{results.engine_code}</Badge>
-                    )}
-                    {results.engine_volume && (
-                      <Badge variant="outline">{results.engine_volume} л</Badge>
-                    )}
-                    {results.year_start && results.year_end && (
-                      <Badge variant="outline">
-                        {results.year_start}–{results.year_end}
-                      </Badge>
-                    )}
-                  </>
-                )}
-                <Badge
-                  variant="outline"
-                  className="ml-auto bg-blue-50 text-blue-700 border-blue-200"
-                >
-                  Найдено: {results.found_by === "exact_sql" ? "🟢 Точное совпадение" : "🟡 Семантический поиск"}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Вкладки/селектор по моделям (когда найдено несколько) */}
-          {results.models.length > 1 && (
+          {error && (
             <Card>
-              <CardContent className="py-4 space-y-3">
-                <p className="text-sm font-medium">Найдено {results.models.length} моделей {results.brand}:</p>
-                
-                {results.models.length <= 10 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {results.models.map((m) => (
-                      <button
-                        key={`model-${m.id}`}
-                        onClick={() => {
-                          setSelectedModel(m.name);
-                          setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
-                        }}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                          (selectedModel || results.models[0]?.name) === m.name
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background text-foreground border-border hover:bg-muted"
-                        }`}
-                      >
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Select value={selectedModel || results.models[0]?.name} onValueChange={(val) => {
-                      setSelectedModel(val);
-                      setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
-                    }}>
-                      <SelectTrigger className="w-full sm:w-80">
-                        <SelectValue placeholder="Выберите модель" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {results.models.map((m) => (
-                          <SelectItem key={`select-${m.id}`} value={m.name}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Показаны все {results.models.length} моделей. Выберите конкретную для точного подбора.
-                    </p>
-                  </div>
-                )}
-
-                {/* Фильтр по объёму двигателя для выбранной модели */}
-                {(() => {
-                  const currentModel = results.models.find(
-                    (m) => m.name === (selectedModel || results.models[0]?.name)
-                  );
-                  if (!currentModel || (currentModel.engine_volumes.length === 0 && currentModel.engine_variants.length === 0)) return null;
-                  const activeVolume = lastSearchParams.engine_volume as number | undefined;
-                  return (
-                    <div className="space-y-2 pt-1">
-                      {currentModel.engine_volumes.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground">Объём двигателя:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {currentModel.engine_volumes.map((v) => (
-                              <button
-                                key={`vol-${v}`}
-                                onClick={() => handleEngineVolumeSelect(v)}
-                                className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                                  activeVolume === v
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:bg-muted"
-                                }`}
-                              >
-                                {v} л
-                              </button>
-                            ))}
-                            {activeVolume !== undefined && (
-                              <button
-                                onClick={clearEngineVolume}
-                                className="px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {currentModel.engine_variants.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground">Мотор:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {currentModel.engine_variants.map((ev) => (
-                              <button
-                                key={`ev-${ev.engine_code}`}
-                                onClick={() => handleEngineCodeSelect(
-                                  activeEngineCode === ev.engine_code ? null : ev.engine_code
-                                )}
-                                className={`font-mono px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
-                                  activeEngineCode === ev.engine_code
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:bg-muted"
-                                }`}
-                              >
-                                {ev.engine_code}
-                                {ev.engine_volume !== null && (
-                                  <span className="ml-1 opacity-70">({ev.engine_volume} л)</span>
-                                )}
-                              </button>
-                            ))}
-                            {activeEngineCode !== undefined && (
-                              <button
-                                onClick={clearEngineCode}
-                                className="px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+              <CardContent className="flex items-center gap-3 py-4">
+                <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+                <p className="text-sm text-red-600">{error}</p>
               </CardContent>
             </Card>
           )}
 
-          {/* Вкладки по узлам (компактные, горизонтальные) */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-1.5">
-              {results.groups.map((group) => {
-                const nodeType = group.node_type as NodeType;
-                const cfg = NODE_CONFIG[nodeType];
-                const pillClass = cfg?.pillClass || 'node-pill-engine';
-                return (
-                  <button
-                    key={`node-${group.node_type}`}
-                    onClick={() => setActiveNodeTab(group.node_type)}
-                    className={`node-pill ${pillClass} ${
-                      activeNodeTab === group.node_type ? 'ring-2 ring-[var(--foreground)]' : 'opacity-70'
-                    }`}
-                    aria-pressed={activeNodeTab === group.node_type}
-                  >
-                    {cfg && <NodeIcon type={nodeType} size={12} />}
-                    <span>{cfg?.shortLabel || group.node_type}</span>
-                    <span className="tabular-nums ml-0.5">({group.recommendations.length})</span>
-                  </button>
-                );
-              })}
-            </div>
+          {loading && <LoadingSkeleton />}
 
-            {results.groups.map((group) =>
-              activeNodeTab !== group.node_type ? null : (
-                <div key={`content-${group.node_type}`} className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    {group.node_label}: найдено {group.recommendations.length}{" "}
-                    {group.recommendations.length === 1
-                      ? "рекомендация"
-                      : group.recommendations.length < 5
-                        ? "рекомендации"
-                        : "рекомендаций"}
-                  </p>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {[...group.recommendations]
-                      .sort((a, b) => a.recommendation_rank - b.recommendation_rank)
-                      .map((fluid) => (
-                        <FluidCardWrapper key={fluid.fluid_id} fluid={fluid} />
-                      ))}
+          {!loading && results && results.groups.length > 0 && (
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="py-4">
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    {results.models.length > 1 ? (
+                      <>
+                        <span className="font-semibold">{results.brand}</span>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                          🚗 {results.models.length} моделей
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold">
+                          {results.brand} {results.model}
+                        </span>
+                        {results.engine_code && (
+                          <Badge variant="outline">{results.engine_code}</Badge>
+                        )}
+                        {results.engine_volume && (
+                          <Badge variant="outline">{results.engine_volume} л</Badge>
+                        )}
+                        {results.year_start && results.year_end && (
+                          <Badge variant="outline">
+                            {results.year_start}–{results.year_end}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className="ml-auto bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      Найдено: {results.found_by === "exact_sql" ? "🟢 Точное совпадение" : "🟡 Семантический поиск"}
+                    </Badge>
                   </div>
-                </div>
-              )
-            )}
-          </div>
-        </div>
-      )}
+                </CardContent>
+              </Card>
 
-      {/* Пустое состояние */}
-      {!loading && results && results.groups.length === 0 && <EmptyState />}
+              {results.models.length > 1 && (
+                <Card>
+                  <CardContent className="py-4 space-y-3">
+                    <p className="text-sm font-medium">Найдено {results.models.length} моделей {results.brand}:</p>
+
+                    {results.models.length <= 10 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {results.models.map((m) => (
+                          <button
+                            key={`model-${m.id}`}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
+                            }}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                              (selectedModel || results.models[0]?.name) === m.name
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:bg-muted"
+                            }`}
+                          >
+                            {m.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Select value={selectedModel || results.models[0]?.name} onValueChange={(val) => {
+                          setSelectedModel(val);
+                          setActiveNodeTab(results.groups[0]?.node_type || "ENGINE");
+                        }}>
+                          <SelectTrigger className="w-full sm:w-80">
+                            <SelectValue placeholder="Выберите модель" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {results.models.map((m) => (
+                              <SelectItem key={`select-${m.id}`} value={m.name}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Показаны все {results.models.length} моделей. Выберите конкретную для точного подбора.
+                        </p>
+                      </div>
+                    )}
+
+                    {(() => {
+                      const currentModel = results.models.find(
+                        (m) => m.name === (selectedModel || results.models[0]?.name)
+                      );
+                      if (!currentModel || (currentModel.engine_volumes.length === 0 && currentModel.engine_variants.length === 0)) return null;
+                      const activeVolume = lastSearchParams.engine_volume as number | undefined;
+                      return (
+                        <div className="space-y-2 pt-1">
+                          {currentModel.engine_volumes.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs text-muted-foreground">Объём двигателя:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {currentModel.engine_volumes.map((v) => (
+                                  <button
+                                    key={`vol-${v}`}
+                                    onClick={() => handleEngineVolumeSelect(v)}
+                                    className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                                      activeVolume === v
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-background text-foreground border-border hover:bg-muted"
+                                    }`}
+                                  >
+                                    {v} л
+                                  </button>
+                                ))}
+                                {activeVolume !== undefined && (
+                                  <button
+                                    onClick={clearEngineVolume}
+                                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {currentModel.engine_variants.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs text-muted-foreground">Мотор:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {currentModel.engine_variants.map((ev) => (
+                                  <button
+                                    key={`ev-${ev.engine_code}`}
+                                    onClick={() => handleEngineCodeSelect(
+                                      activeEngineCode === ev.engine_code ? null : ev.engine_code
+                                    )}
+                                    className={`font-mono px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                                      activeEngineCode === ev.engine_code
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-background text-foreground border-border hover:bg-muted"
+                                    }`}
+                                  >
+                                    {ev.engine_code}
+                                    {ev.engine_volume !== null && (
+                                      <span className="ml-1 opacity-70">({ev.engine_volume} л)</span>
+                                    )}
+                                  </button>
+                                ))}
+                                {activeEngineCode !== undefined && (
+                                  <button
+                                    onClick={clearEngineCode}
+                                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background text-muted-foreground hover:bg-muted"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-1.5">
+                  {results.groups.map((group) => {
+                    const nodeType = group.node_type as NodeType;
+                    const cfg = NODE_CONFIG[nodeType];
+                    const pillClass = cfg?.pillClass || 'node-pill--engine';
+                    return (
+                      <button
+                        key={`node-${group.node_type}`}
+                        onClick={() => setActiveNodeTab(group.node_type)}
+                        className={`node-pill ${pillClass} ${
+                          activeNodeTab === group.node_type ? 'ring-2 ring-[var(--foreground)]' : 'opacity-70'
+                        }`}
+                        aria-pressed={activeNodeTab === group.node_type}
+                      >
+                        {cfg && <NodeIcon type={nodeType} size={12} />}
+                        <span>{cfg?.shortLabel || group.node_type}</span>
+                        <span className="tabular-nums ml-0.5">({group.recommendations.length})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {results.groups.map((group) =>
+                  activeNodeTab !== group.node_type ? null : (
+                    <div key={`content-${group.node_type}`} className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        {group.node_label}: найдено {group.recommendations.length}{" "}
+                        {group.recommendations.length === 1
+                          ? "рекомендация"
+                          : group.recommendations.length < 5
+                            ? "рекомендации"
+                            : "рекомендаций"}
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {[...group.recommendations]
+                          .sort((a, b) => a.recommendation_rank - b.recommendation_rank)
+                          .map((fluid) => (
+                            <FluidCardWrapper key={fluid.fluid_id} fluid={fluid} />
+                          ))}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {!loading && results && results.groups.length === 0 && <EmptyState />}
+        </div>
+
+        <aside className="hidden lg:block">
+          <div className="sticky top-6">
+            <SidePanel />
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

@@ -137,6 +137,10 @@
   --node-fluids-bg: oklch(0.93 0.04 195);
   --node-brakes: oklch(0.55 0.18 25);           /* red — safety */
   --node-brakes-bg: oklch(0.93 0.04 25);
+  --node-hydraulic: oklch(0.55 0.13 0);         /* warm grey — steering */
+  --node-hydraulic-bg: oklch(0.94 0.005 75);
+  --node-other: oklch(0.55 0.08 250);           /* slate — suspension */
+  --node-other-bg: oklch(0.93 0.008 250);
 
   /* Z-index scale */
   --z-base: 0;

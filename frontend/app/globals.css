@@ -182,6 +182,13 @@
   .node-pill-drivetrain   { background: var(--node-drivetrain-bg);   color: var(--node-drivetrain);   border-color: var(--node-drivetrain); }
   .node-pill-fluids       { background: var(--node-fluids-bg);       color: var(--node-fluids);       border-color: var(--node-fluids); }
   .node-pill-brakes       { background: var(--node-brakes-bg);       color: var(--node-brakes);       border-color: var(--node-brakes); }
+  .node-pill--engine       { background: var(--node-engine-bg);       color: var(--node-engine);       border-color: var(--node-engine); }
+  .node-pill--transmission { background: var(--node-transmission-bg); color: var(--node-transmission); border-color: var(--node-transmission); }
+  .node-pill--drivetrain   { background: var(--node-drivetrain-bg);   color: var(--node-drivetrain);   border-color: var(--node-drivetrain); }
+  .node-pill--fluids       { background: var(--node-fluids-bg);       color: var(--node-fluids);       border-color: var(--node-fluids); }
+  .node-pill--brakes       { background: var(--node-brakes-bg);       color: var(--node-brakes);       border-color: var(--node-brakes); }
+  .node-pill--hydraulic   { background: var(--node-hydraulic-bg);   color: var(--node-hydraulic);   border-color: var(--node-hydraulic); }
+  .node-pill--other       { background: var(--node-other-bg);       color: var(--node-other);       border-color: var(--node-other); }
 
   .fluid-card {
     @apply relative overflow-hidden rounded-lg border p-5;
@@ -377,6 +384,134 @@
     @apply absolute inset-0;
     background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.4), transparent);
     animation: shimmer 1.5s infinite;
+  }
+
+  .condition-chip {
+    @apply inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-medium;
+    background: var(--surface-2);
+    color: var(--sidebar-muted);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    letter-spacing: var(--tracking-mono);
+  }
+  .condition-chip::before {
+    content: '◆';
+    margin-right: 3px;
+    font-size: 6px;
+    color: var(--accent);
+    opacity: 0.6;
+  }
+
+  .rank-badge {
+    @apply inline-flex items-center gap-0.5 rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide shrink-0;
+    border: 1px solid;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+  }
+  .rank-badge.fluid-card--rank-1 {
+    background: var(--success-muted);
+    color: var(--success);
+    border-color: var(--success);
+  }
+  .rank-badge.fluid-card--rank-2 {
+    background: var(--info-muted);
+    color: var(--info);
+    border-color: var(--info);
+  }
+  .rank-badge.fluid-card--rank-3 {
+    background: var(--surface-2);
+    color: var(--sidebar-muted);
+    border-color: var(--border-strong);
+  }
+  .rank-badge.fluid-card--rank-n {
+    background: var(--surface-2);
+    color: var(--sidebar-muted);
+    border-color: var(--border-strong);
+    font-style: italic;
+  }
+  .rank-badge-star {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .fluid-card--rank-1 {
+    --badge-color: var(--success);
+  }
+  .fluid-card--rank-2 {
+    --badge-color: var(--info);
+  }
+  .fluid-card--rank-3 {
+    --badge-color: var(--sidebar-muted);
+  }
+  .fluid-card--rank-n {
+    --badge-color: var(--border-strong);
+  }
+
+  .vehicle-tabs {
+    @apply flex gap-1.5 overflow-x-auto pb-1;
+    scrollbar-width: none;
+  }
+  .vehicle-tabs::-webkit-scrollbar { display: none; }
+
+  .vehicle-tab {
+    @apply relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all;
+    background: var(--surface-1);
+    border-color: var(--border);
+    color: var(--sidebar-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .vehicle-tab:hover {
+    border-color: var(--border-strong);
+    color: var(--foreground);
+    background: var(--surface-2);
+  }
+  .vehicle-tab:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .vehicle-tab--active {
+    background: var(--primary-muted);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .vehicle-tab--active:hover {
+    background: var(--primary-muted);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .vehicle-tab-icon {
+    @apply shrink-0;
+    opacity: 0.8;
+  }
+  .vehicle-tab--active .vehicle-tab-icon {
+    opacity: 1;
+  }
+  .vehicle-tab-count {
+    @apply text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-sm;
+    background: var(--surface-2);
+    color: var(--sidebar-muted);
+    line-height: 1;
+  }
+  .vehicle-tab-count--soon {
+    color: var(--warning);
+    background: var(--warning-muted);
+  }
+  .vehicle-tab--active .vehicle-tab-count {
+    background: rgba(255 255 255 / 0.2);
+    color: var(--primary);
+  }
+  .vehicle-tab-indicator {
+    @apply absolute -bottom-px left-2 right-2 h-0.5 rounded-full;
+    background: var(--primary);
+  }
+
+  .field {
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+  .field--hidden {
+    display: none;
   }
 }
 

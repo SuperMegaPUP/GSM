@@ -1,30 +1,8 @@
-// =============================================================
-// SSE-клиент для стриминга ответов Sales Copilot
-// Использует нативный fetch + ReadableStream (не EventSource, т.к. нужен POST)
-// =============================================================
-
 export interface ObjectionResponse {
   style: string;
   label: string;
   text: string;
 }
-
-interface SSEChunk {
-  type: "chunk";
-  text: string;
-}
-
-interface SSEDone {
-  type: "done";
-  variants: ObjectionResponse[];
-}
-
-interface SSEFallback {
-  type: "fallback";
-  reason: string;
-}
-
-type SSEEvent = SSEChunk | SSEDone | SSEFallback;
 
 /**
  * Отправляет возражение на бэкенд и стримит ответ через SSE.
@@ -44,7 +22,7 @@ export async function streamObjectionResponse(
   let timeoutId: NodeJS.Timeout | undefined;
   try {
     const controller = new AbortController();
-    timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+    timeoutId = setTimeout(() => controller.abort(), 300000);
 
     const response = await fetch("/api/v1/sales/handle-objection", {
       signal: controller.signal,
@@ -74,11 +52,18 @@ export async function streamObjectionResponse(
       return;
     }
 
-    // Читаем ReadableStream и парсим SSE-события
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let receivedDone = false;
+
+    // Аккумуляция вариантов из последовательности variant_start → variant_chunk → variant_done
+    const variantLabels: Record<string, string> = {
+      rational: "Рациональный",
+      empathetic: "Эмпатичный",
+      take_charge: "Перехват инициативы",
+    };
+    const accumulated: Record<string, string> = {};
 
     while (true) {
       const { done, value } = await reader.read();
@@ -87,9 +72,7 @@ export async function streamObjectionResponse(
 
       buffer += decoder.decode(value, { stream: true });
 
-      // Парсим буфер по строкам, ищем полные SSE-события (разделены пустой строкой)
       const lines = buffer.split("\n");
-      // Последняя строка может быть неполной — оставляем в буфере
       buffer = lines.pop() || "";
 
       for (const line of lines) {
@@ -101,18 +84,41 @@ export async function streamObjectionResponse(
           }
 
           try {
-            const event: SSEEvent = JSON.parse(data);
+            const event = JSON.parse(data);
+            const type = event.type;
 
-            if (event.type === "chunk") {
-              onChunk(event.text);
-            } else if (event.type === "done") {
+            if (type === "variant_chunk") {
+              const v = event.variant as string;
+              const chunk = event.chunk as string;
+              if (chunk) {
+                accumulated[v] = (accumulated[v] || "") + chunk;
+                onChunk(chunk);
+              }
+            } else if (type === "variant_done") {
+              // Вариант завершён — ничего не делаем, ждём финальный done
+            } else if (type === "rag_cases") {
+              // Пропускаем, не показываем в упрощённом режиме
+            } else if (type === "done") {
               receivedDone = true;
-              onDone(event.variants);
-            } else if (event.type === "fallback") {
+              // Собираем 3 варианта
+              const variants: ObjectionResponse[] = Object.entries(accumulated)
+                .filter((entry) => entry[1].trim().length > 0)
+                .map(([style, text]) => ({
+                  style,
+                  label: variantLabels[style] || style,
+                  text: text.trim(),
+                }));
+              if (variants.length === 0) {
+                onError("Модель не сгенерировала ответы");
+              } else {
+                onDone(variants);
+              }
+            } else if (type === "error") {
+              onError(event.message || "Неизвестная ошибка");
+            } else if (type === "fallback") {
               onError(`LLM недоступен: ${event.reason}`);
             }
           } catch {
-            // Если не удалось распарсить JSON — это может быть сырой текст чанка
             if (data.trim()) {
               onChunk(data);
             }
@@ -121,26 +127,8 @@ export async function streamObjectionResponse(
       }
     }
 
-    // Обработка оставшегося буфера
-    if (!receivedDone && buffer.startsWith("data: ")) {
-      const data = buffer.slice(6);
-      if (data !== "[DONE]") {
-        try {
-          const event: SSEEvent = JSON.parse(data);
-          if (event.type === "chunk") onChunk(event.text);
-          else if (event.type === "done") {
-            receivedDone = true;
-            onDone(event.variants);
-          }
-        } catch {
-          if (data.trim()) onChunk(data);
-        }
-      }
-    }
-
     if (timeoutId) clearTimeout(timeoutId);
 
-    // Если стрим завершился без done — ошибка
     if (!receivedDone) {
       onError("Соединение прервано до получения полного ответа");
     }
