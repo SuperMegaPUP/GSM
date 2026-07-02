@@ -33,6 +33,9 @@ class FluidSearchResult(BaseModel):
     is_oem_recommendation: bool
     confidence_score: Optional[float] = None
     oem_specification: Optional[str] = None
+    recommendation_rank: int = 1
+    applicability_conditions: dict = {}
+    fluid_name_override: Optional[str] = None
 
 
 class NodeGroupResult(BaseModel):

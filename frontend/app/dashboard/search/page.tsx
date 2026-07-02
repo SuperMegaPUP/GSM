@@ -47,6 +47,9 @@ interface FluidSearchResult {
   is_oem_recommendation: boolean;
   confidence_score: number | null;
   oem_specification: string | null;
+  recommendation_rank: number;
+  applicability_conditions: Record<string, unknown>;
+  fluid_name_override: string | null;
 }
 
 interface NodeGroupResult {
@@ -95,6 +98,20 @@ interface SearchResponse {
 // Компонент карточки масла
 // =============================================================
 
+const RANK_CONFIG: Record<number, { label: string; badgeClass: string }> = {
+  1: { label: 'Рекомендуется', badgeClass: 'badge-oem' },
+  2: { label: 'Альтернатива 1', badgeClass: 'badge-approval' },
+  3: { label: 'Альтернатива 2', badgeClass: 'badge-alternative' },
+};
+
+function RankBadge({ rank }: { rank: number }) {
+  const cfg = RANK_CONFIG[rank];
+  if (cfg) {
+    return <span className={`badge ${cfg.badgeClass}`}>{cfg.label}</span>;
+  }
+  return <span className="badge badge-alternative">Сноска ({rank})</span>;
+}
+
 function FluidCardWrapper({ fluid }: { fluid: FluidSearchResult }) {
   const [copilotOpen, setCopilotOpen] = useState(false);
 
@@ -123,15 +140,18 @@ function FluidCardWrapper({ fluid }: { fluid: FluidSearchResult }) {
         volume={fluid.volume_liters !== null ? `${fluid.volume_liters} L` : undefined}
         volumeWithFilter={fluid.volume_with_filter !== null ? `${fluid.volume_with_filter} L` : undefined}
         extra={
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => setCopilotOpen(true)}
-          >
-            <Bot className="mr-2 h-4 w-4" />
-            Спросить ИИ-эксперта
-          </Button>
+          <div className="space-y-2">
+            <RankBadge rank={fluid.recommendation_rank} />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setCopilotOpen(true)}
+            >
+              <Bot className="mr-2 h-4 w-4" />
+              Спросить ИИ-эксперта
+            </Button>
+          </div>
         }
       />
 
@@ -738,9 +758,11 @@ export default function SearchPage() {
                         : "рекомендаций"}
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {group.recommendations.map((fluid) => (
-                      <FluidCardWrapper key={fluid.fluid_id} fluid={fluid} />
-                    ))}
+                    {[...group.recommendations]
+                      .sort((a, b) => a.recommendation_rank - b.recommendation_rank)
+                      .map((fluid) => (
+                        <FluidCardWrapper key={fluid.fluid_id} fluid={fluid} />
+                      ))}
                   </div>
                 </div>
               )

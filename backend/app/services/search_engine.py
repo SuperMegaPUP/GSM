@@ -277,6 +277,9 @@ async def _search_semantic_qdrant(
             is_oem_recommendation=p.get("is_oem_recommendation", False),
             confidence_score=scored_point.score,
             oem_specification=p.get("oem_specification"),
+            recommendation_rank=p.get("recommendation_rank", 1),
+            applicability_conditions=p.get("applicability_conditions", {}),
+            fluid_name_override=p.get("fluid_name_override"),
         )
 
         if node_type not in groups:
@@ -339,6 +342,9 @@ def _group_by_node(recs: list[Recommendation]) -> list[NodeGroupResult]:
             is_oem_recommendation=rec.is_oem_recommendation,
             confidence_score=rec.confidence_score,
             oem_specification=rec.oem_specification,
+            recommendation_rank=rec.recommendation_rank,
+            applicability_conditions=rec.applicability_conditions or {},
+            fluid_name_override=rec.fluid_name_override,
         )
 
         if node_type not in groups:
