@@ -9,6 +9,8 @@ COPY . .
 RUN npm run build
 
 FROM node:20-alpine
+ARG API_URL=http://backend:8000
+ENV API_URL=$API_URL
 WORKDIR /app
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public

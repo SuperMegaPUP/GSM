@@ -543,7 +543,20 @@ export function SalesCopilotChat({
                           variant={v}
                           feedbackLogged={feedbackLogged}
                           onFeedback={logFeedback}
-                          onCopy={(text) => navigator.clipboard.writeText(text)}
+                          onCopy={(text) => {
+                            if (navigator.clipboard?.writeText) {
+                              navigator.clipboard.writeText(text);
+                            } else {
+                              const ta = document.createElement('textarea');
+                              ta.value = text;
+                              ta.style.position = 'fixed';
+                              ta.style.opacity = '0';
+                              document.body.appendChild(ta);
+                              ta.select();
+                              document.execCommand('copy');
+                              document.body.removeChild(ta);
+                            }
+                          }}
                         />
                       ))}
                     </div>
@@ -738,7 +751,7 @@ function ResponseVariantCard({
       <div className="text-sm leading-relaxed">{variant.text}</div>
 
       {!variant.streaming && variant.text && (
-        <div className="mt-3 flex gap-1.5 border-t border-dashed border-[var(--border)] pt-3">
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-dashed border-[var(--border)] pt-3">
           <button
             onClick={() => onCopy(variant.text)}
             className="action-btn"
@@ -749,12 +762,12 @@ function ResponseVariantCard({
             </svg>
             Скопировать
           </button>
-          {variant.case_ids.map((cid) => (
-            <span key={cid} className="flex gap-1.5">
+          {variant.case_ids.length > 0 && (
+            <span className="flex gap-1.5">
               <button
-                onClick={() => onFeedback(cid, true)}
+                onClick={() => variant.case_ids.forEach((cid) => onFeedback(cid, true))}
                 className={`action-btn action-btn--positive ${
-                  feedbackLogged[`${cid}-true`] === 'positive' ? 'action-btn--used' : ''
+                  variant.case_ids.some((cid) => feedbackLogged[`${cid}-true`] === 'positive') ? 'action-btn--used' : ''
                 }`}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -763,9 +776,9 @@ function ResponseVariantCard({
                 Сработало
               </button>
               <button
-                onClick={() => onFeedback(cid, false)}
+                onClick={() => variant.case_ids.forEach((cid) => onFeedback(cid, false))}
                 className={`action-btn action-btn--negative ${
-                  feedbackLogged[`${cid}-false`] === 'negative' ? 'action-btn--used' : ''
+                  variant.case_ids.some((cid) => feedbackLogged[`${cid}-false`] === 'negative') ? 'action-btn--used' : ''
                 }`}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -774,7 +787,7 @@ function ResponseVariantCard({
                 Не сработало
               </button>
             </span>
-          ))}
+          )}
         </div>
       )}
     </motion.div>
