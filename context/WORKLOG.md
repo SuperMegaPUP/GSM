@@ -1,22 +1,59 @@
 
 ---
 
-## Сессия от 2026-07-02_08-38
+## Сессия 7 — 2026-07-02 — UI Redesign + PVL импорт
+
+**Стек:** Next.js 14 / FastAPI / SQLAlchemy async / Qdrant / PostgreSQL
 
 **Что сделано:**
 
-- *(автоматическая запись — требуется уточнение)*
+- VehicleTypeTabs — 5 вкладок (легковые/грузовые/спецтехника/мото/бензопилы) с иконками, счётчиками, анимацией индикатора
+- FluidCard редизайн — ранг-бейдж (★ Основное/Alt/Сноска), левая граница по rank (зелёный/синий/серый), чипсы условий
+- SidePanel — сводка (бренды/модели/рекомендации), архитектура узлов, CTA импорта
+- nodeTypes — SUSPENSION + группы hydraulic/other
+- Двухколоночная сетка search page (main + sidebar, sticky)
+- Динамические поля формы (Код кузова для легковых и т.д.)
+- Неактивные вкладки отключены (грузовые/спецтехника/мото — нет данных)
+- Исправлен SSE-клиент: переписан под протокол variant_start/variant_chunk/variant_done
+- Исправлена ошибка Cannot read properties of undefined (reading 'length') в SalesCopilot
 
 **Решения:**
--
+- Все вкладки кроме Легковые отключены — в БД только passenger_car данные
+- Счётчики: 2 920 вариантов, 36 брендов (реальные цифры из oil_saas)
+- CSS-классы переименованы в node-pill--{group} для единообразия
 
 **Следующий шаг:**
--
+- Код кузова (body_code) — новый параметр поиска, нужна поддержка на бэкенде
 
 
 ---
 
-## Сессия 4 — 2026-07-02 — Predictive Analytics + Баги фидбека и статистики
+## Сессия 6 — 2026-07-01 — PVL импорт (36 брендов, ~20k рекомендаций)
+
+**Стек:** FastAPI / SQLAlchemy async / Qdrant / Excel (pandas)
+
+**Что сделано:**
+
+- Миграция БД: SUSPENSION в node_type/fluid_type enum, 6 новых колонок, UNIQUE INDEX заменён
+- Создан pvl_parser.py — 2929 авто, 36 брендов, 20149 рекомендаций
+- ETL расширен: process_pvl_batch с variant hash, auto-detect PVL в parse_excel_task
+- Qdrant payload: recommendation_rank, applicability_conditions, fluid_name_override
+- PVL импортирован: 20084 рекомендаций, 36 брендов, 2925 моделей, 5156 вариантов
+- Frontend: FluidCardWrapper с RankBadge, сортировка по rank, API возвращает recommendation_rank
+- Frontend пересобран и запущен на порту 3000
+- Исправление CAST(:cond AS jsonb) — asyncpg + named params
+
+**Решения:**
+- PVL данные в тенанте pvl@test.ru (отдельно от JDM test@test.ru)
+- recommendation_rank 1-3 = основное/альт1/альт2, 4+ = сноска
+
+**Следующий шаг:**
+- Залить PVL в test@test.ru или дать инструкцию
+- Продлить canonical_name в fluids (ALTER TABLE hang)
+
+---
+
+## Сессия 5 — 2026-07-02 — Predictive Analytics + Баги фидбека и статистики
 
 **Стек:** FastAPI 0.115+ / SQLAlchemy 2.0 async / Pydantic V2 / Next.js 14 / Celery Beat
 

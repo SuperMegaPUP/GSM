@@ -78,6 +78,9 @@
 - [x] 7.2: Страница подбора масел (поиск + карточки + модель-селектор)
 - [x] 7.3: Sales Copilot (SSE-стриминг, 3 стиля)
 - [x] 7.4: Imports (Drag&Drop, прогресс, история)
+- [x] 7.5: VehicleTypeTabs (5 вкладок) + SidePanel
+- [x] 7.6: FluidCard редизайн (rank-бейдж, чипсы условий, граница по rank)
+- [x] 7.7: SSE-клиент фикс (variant_start/variant_chunk/variant_done протокол)
 
 ---
 
@@ -85,11 +88,19 @@
 
 - [ ] 8.1: Биллинг (Grace Period, State Machine)
 - [x] 8.2: Предиктивная аналитика (7 правил, nightly trends, API, дашборд)
-- [ ] 8.3: Telegram-bot (webhooks, быстрые команды)
+- [ ] 8.3: Telegram-bot
+
+## Этап 9: PVL каталог ✅
+
+- [x] 9.1: Парсер pvl_parser.py (2929 авто, 36 брендов)
+- [x] 9.2: ETL — process_pvl_batch, auto-detect
+- [x] 9.3: Миграция — SUSPENSION, 6 колонок, UNIQUE INDEX
+- [x] 9.4: Qdrant payload (recommendation_rank, applicability_conditions)
+- [x] 9.5: CAST-фикс (asyncpg + jsonb)
 
 ---
 
-## Этап 9: CI/CD + Деплой
+## Этап 10: CI/CD + Деплой
 
 - [ ] 9.1: CI пайплайн (lint → test → build → deploy)
 - [ ] 9.2: Staging + Prod стенды

@@ -1,7 +1,7 @@
 # SNAPSHOT.md — Текущее состояние проекта
 
 **Дата:** 2026-07-02
-**Статус:** MVP + Sales Copilot 2.0 + Predictive Analytics — 120 seed-кейсов
+**Статус:** MVP + PVL каталог (36 брендов, 20k рекомендаций) + UI Redesign
 
 ## Что сделано
 
@@ -68,8 +68,12 @@
 - [x] **Sales Copilot:** панель «Кейс в фокусе» с живыми деталями кейса
 - [x] **Sales Copilot:** панель «Статистика сессии» с живыми данными (total, used, won/lost, success rate)
 - [x] **Ссылка «Аналитика»** в боковом меню
+- [x] **VehicleTypeTabs** — 5 вкладок (легковые/грузовые/спецтехника/мото/бензопилы) с иконками
+- [x] **FluidCard редизайн** — rank-бейдж, левая граница по rank, чипсы условий
+- [x] **SidePanel** — сводка, архитектура узлов, CTA импорта
+- [x] **SSE-фикс** — переписан streamObjectionResponse под реальный протокол бэкенда
 
-### Этап 8: Predictive Analytics
+### Этап 8: Predictive Analytics + PVL каталог
 - [x] `daily_trends` таблица + модель `DailyTrend` + миграция
 - [x] 7 правил в `predictive_analytics.py` (troubled/golden cases, popular objections, empty categories и др.)
 - [x] `compute_trends_task` (3 метрики) + добавлен в celery beat
@@ -80,6 +84,11 @@
 - [x] **Баг fix:** route order `/stats` перед `/{case_id}` — stats был недоступен
 - [x] **Live trends:** objections_total и objections_by_category для сегодня считаются на лету
 - [x] **total_lost** добавлен в `StatsResponse`
+- [x] **PVL импорт:** pvl_parser.py, 2929 авто, 36 брендов, ~20k рекомендаций
+- [x] **ETL:** process_pvl_batch, auto-detect PVL формат
+- [x] **Qdrant:** payload c recommendation_rank, applicability_conditions
+- [x] **Миграция:** SUSPENSION enum, новые колонки, UNIQUE INDEX replace
+- [x] **CAST-фикс:** asyncpg + named params для jsonb
 
 ### Контекст проекта
 - [x] `context/` — 10 .md файлов (RULES, ARCHITECTURE, BACKLOG, SNAPSHOT, WORKLOG, HISTORY, VERSIONING, CONTEXT, RITUALS, TEMPLATES)
@@ -119,8 +128,10 @@
 
 ## Следующая задача
 
-1. sentence-transformers для cross-encoder re-ranker (опционально)
-2. MCP-сервер (опционально)
-3. Страница /dashboard/clients
-4. Unit-тесты для ETL, поиска и Sales Copilot
-5. Этап 8.3: Telegram-bot
+1. Код кузова (body_code) — новый параметр поиска, нужна поддержка на бэкенде
+2. Продлить canonical_name в fluids (ALTER TABLE hang из-за блокировки)
+3. Залить PVL данные в test@test.ru (объединить с JDM)
+4. sentence-transformers для cross-encoder re-ranker
+5. Страница /dashboard/clients
+6. Unit-тесты для ETL, поиска и Sales Copilot
+7. Telegram-bot
