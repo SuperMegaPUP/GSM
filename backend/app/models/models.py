@@ -46,6 +46,7 @@ class NodeType(str, enum.Enum):
     STEERING = "STEERING"
     BRAKE = "BRAKE"
     COOLANT = "COOLANT"
+    SUSPENSION = "SUSPENSION"
 
 
 class SubscriptionStatus(str, enum.Enum):
@@ -156,7 +157,7 @@ class CarModel(Base, TimestampMixin, TenantAwareMixin):
     brand_id: Mapped[UUID] = mapped_column(
         ForeignKey("car_brands.id", ondelete="CASCADE"), nullable=False
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
     generation: Mapped[Optional[str]] = mapped_column(String(100))
     year_start: Mapped[Optional[int]]
     year_end: Mapped[Optional[int]]
@@ -186,6 +187,11 @@ class CarVariant(Base, TimestampMixin, TenantAwareMixin):
     year_end: Mapped[Optional[int]]
     source_hash: Mapped[Optional[str]] = mapped_column(
         String(64)
+    )
+    sub_model: Mapped[Optional[str]] = mapped_column(String(200))
+    market: Mapped[Optional[str]] = mapped_column(String(20))
+    attributes: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
 
     # Связи
@@ -269,6 +275,13 @@ class Recommendation(Base, TimestampMixin, TenantAwareMixin):
     )
     source: Mapped[Optional[str]] = mapped_column(
         String(100), comment="Источник данных (имя файла)"
+    )
+    recommendation_rank: Mapped[int] = mapped_column(default=1)
+    applicability_conditions: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    fluid_name_override: Mapped[Optional[str]] = mapped_column(
+        String(300), comment="Имя масла, если fluid_id NULL (PVL)"
     )
 
     # Связи

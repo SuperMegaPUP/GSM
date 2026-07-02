@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from app.core.config import settings
 from app.models.models import ImportBatch, ImportStatus
 from app.services.excel_parser import parse_japanese_catalog, list_sheets
-from app.services.etl_pipeline import process_import_batch
+from app.services.pvl_parser import PVLParser, flatten_to_raw_rows
+from app.services.etl_pipeline import process_import_batch, process_pvl_batch
 from app.services.vector_indexer import index_recommendations_to_qdrant
 
 logger = logging.getLogger(__name__)
@@ -113,25 +114,37 @@ def parse_excel_task(
 
             client.fget_object("excel-imports", minio_path, tmp_path)
 
-            sheets = list_sheets(tmp_path)
-            logger.info("Листы в файле (%d): %s", len(sheets), sheets)
+            # Авто-детект: PVL или JDM
+            pvl_parser = PVLParser()
+            is_pvl = pvl_parser.detect(tmp_path)
 
             raw_row_dicts: list[dict] = []
             file_errors = 0
 
-            for sheet in sheets:
-                result = parse_japanese_catalog(tmp_path, sheet_name=sheet)
-                raw_row_dicts.extend(asdict(r) for r in result.rows)
-                file_errors += len(result.errors)
-                if result.errors:
-                    for err in result.errors[:3]:
-                        logger.warning(
-                            "Лист %s, строка %d: %s",
-                            sheet, err["excel_row"], err["error"],
-                        )
+            if is_pvl:
+                logger.info("Обнаружен PVL-формат — использую PVLParser")
+                vehicles = pvl_parser.parse(tmp_path)
+                raw_row_dicts = flatten_to_raw_rows(vehicles)
+                logger.info(
+                    "PVL-парсинг: %d автомобилей, %d flat-строк",
+                    len(vehicles), len(raw_row_dicts),
+                )
+            else:
+                sheets = list_sheets(tmp_path)
+                logger.info("Листы в файле (%d): %s", len(sheets), sheets)
 
+                for sheet in sheets:
+                    result = parse_japanese_catalog(tmp_path, sheet_name=sheet)
+                    raw_row_dicts.extend(asdict(r) for r in result.rows)
+                    file_errors += len(result.errors)
+                    if result.errors:
+                        for err in result.errors[:3]:
+                            logger.warning(
+                                "Лист %s, строка %d: %s",
+                                sheet, err["excel_row"], err["error"],
+                            )
             logger.info(
-                "Парсинг листов завершён: %d сырых строк, %d ошибок файла",
+                "Парсинг завершён: %d сырых строк, %d ошибок файла",
                 len(raw_row_dicts), file_errors,
             )
 
@@ -142,21 +155,25 @@ def parse_excel_task(
                     raise RuntimeError(f"Batch {batch_id} не найден")
 
                 from sqlalchemy import text
-                # Отключаем FORCE RLS на время импорта — RETURNING в ON CONFLICT
-                # не работает корректно с включённым RLS (возвращает неверный ID)
-                # Безопасность обеспечивается через company_id во всех запросах
                 for tbl in ("car_brands", "car_models", "car_variants", "fluids", "recommendations"):
                     await db.execute(text(f"ALTER TABLE {tbl} NO FORCE ROW LEVEL SECURITY"))
                 await db.commit()
 
-                pipeline_result = await process_import_batch(
-                    batch_id=batch_uuid,
-                    raw_rows=raw_row_dicts,
-                    tenant_id=tenant_id,
-                    db=db,
-                )
+                if is_pvl:
+                    pipeline_result = await process_pvl_batch(
+                        batch_id=batch_uuid,
+                        raw_rows=raw_row_dicts,
+                        company_id=tenant_id,
+                        db=db,
+                    )
+                else:
+                    pipeline_result = await process_import_batch(
+                        batch_id=batch_uuid,
+                        raw_rows=raw_row_dicts,
+                        tenant_id=tenant_id,
+                        db=db,
+                    )
 
-                # Включаем RLS обратно
                 for tbl in ("car_brands", "car_models", "car_variants", "fluids", "recommendations"):
                     await db.execute(text(f"ALTER TABLE {tbl} FORCE ROW LEVEL SECURITY"))
                 await db.commit()

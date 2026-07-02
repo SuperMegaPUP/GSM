@@ -34,6 +34,7 @@ NODE_LABELS: dict[str, str] = {
     "STEERING": "ГУР",
     "BRAKE": "Тормозная система",
     "COOLANT": "Охлаждение",
+    "SUSPENSION": "Подвеска",
 }
 
 
@@ -84,10 +85,13 @@ def _build_embedding_text(
     fluid_name: str,
     viscosity: Optional[str],
     oem_approvals: list,
+    sub_model: Optional[str] = None,
 ) -> str:
     parts = [
         f"Рекомендация для {brand_name} {model_name}",
     ]
+    if sub_model:
+        parts.append(sub_model)
     if engine_code:
         parts.append(engine_code)
     if engine_volume:
@@ -211,6 +215,7 @@ async def index_recommendations_to_qdrant(
             fluid_name=fluid.canonical_name,
             viscosity=fluid.viscosity_sae,
             oem_approvals=fluid.oem_approvals or [],
+            sub_model=variant.sub_model,
         )
 
         texts.append(text)
@@ -253,6 +258,11 @@ async def index_recommendations_to_qdrant(
                         "is_oem_recommendation": rec.is_oem_recommendation,
                         "oem_specification": rec.oem_specification,
                         "confidence_score": rec.confidence_score,
+                        "recommendation_rank": rec.recommendation_rank,
+                        "applicability_conditions": rec.applicability_conditions or {},
+                        "fluid_name_override": rec.fluid_name_override,
+                        "sub_model": variant.sub_model,
+                        "market": variant.market,
                     },
                 )
             )

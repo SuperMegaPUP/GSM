@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Optional
 from uuid import UUID
@@ -318,6 +319,261 @@ async def process_import_batch(
             logger.info(
                 "Обработано %d / %d строк batch=%s", i, total, batch_id
             )
+
+    await db.commit()
+
+    return {
+        "total": total,
+        "success": success,
+        "errors": errors,
+        "new_rows": new_rows,
+        "duplicates": duplicates,
+        "created_brands": created_brands,
+        "created_models": created_models,
+        "created_variants": created_variants,
+        "created_fluids": created_fluids,
+        "new_recommendation_ids": new_recommendation_ids,
+    }
+
+
+# =============================================================
+# PVL-specific ETL
+# =============================================================
+
+async def _upsert_variant_pvl(
+    db: AsyncSession,
+    company_id: UUID,
+    model_id: UUID,
+    sub_model: Optional[str],
+    engine_volume: Optional[float],
+    year_start: Optional[int],
+    year_end: Optional[int],
+    fuel_type: Optional[str],
+    market: Optional[str],
+    attributes: Optional[dict],
+    source_hash: str,
+) -> UUID:
+    result = await db.execute(
+        text("""
+            INSERT INTO car_variants
+                (company_id, model_id, engine_volume, fuel_type,
+                 year_start, year_end, sub_model, market, attributes, source_hash)
+            VALUES (:tid, :mid, :ev, :ft, :ys, :ye, :sm, :mkt, CAST(:attrs AS jsonb), :sh)
+            ON CONFLICT (company_id, source_hash) DO UPDATE SET
+                model_id = EXCLUDED.model_id,
+                engine_volume = EXCLUDED.engine_volume,
+                fuel_type = EXCLUDED.fuel_type,
+                year_start = EXCLUDED.year_start,
+                year_end = EXCLUDED.year_end,
+                sub_model = EXCLUDED.sub_model,
+                market = EXCLUDED.market,
+                attributes = EXCLUDED.attributes,
+                updated_at = NOW()
+            RETURNING id
+        """),
+        {
+            "tid": str(company_id),
+            "mid": str(model_id),
+            "ev": engine_volume,
+            "ft": fuel_type,
+            "ys": year_start,
+            "ye": year_end,
+            "sm": sub_model,
+            "mkt": market,
+            "attrs": json.dumps(attributes or {}),
+            "sh": source_hash,
+        },
+    )
+    return result.scalar_one()
+
+
+async def process_pvl_batch(
+    batch_id: UUID,
+    raw_rows: list[dict],
+    company_id: UUID,
+    db: AsyncSession,
+) -> dict:
+    total = len(raw_rows)
+    success = 0
+    errors = 0
+    new_rows = 0
+    duplicates = 0
+    created_brands = 0
+    created_models = 0
+    created_variants = 0
+    created_fluids = 0
+
+    brand_cache: dict[str, UUID] = {}
+    model_cache: dict[tuple[UUID, str], UUID] = {}
+    variant_cache: dict[str, UUID] = {}
+    fluid_cache: dict[str, UUID] = {}
+    new_recommendation_ids: list[str] = []
+
+    for i, row_data in enumerate(raw_rows):
+        if i > 0 and i % 5000 == 0:
+            logger.info("PVL ETL progress: %d/%d rows", i, total)
+
+        brand_name = (row_data.get("brand") or "").strip()
+        model_name = (row_data.get("model") or "").strip()
+        sub_model = row_data.get("sub_model") or None
+        engine_volume = row_data.get("engine_volume") or None
+        year_start = row_data.get("year_start") or None
+        year_end = row_data.get("year_end") or None
+        fuel_type = row_data.get("fuel_type") or None
+        market = row_data.get("market") or None
+        attributes = row_data.get("attributes") or {}
+        node_type = row_data.get("node_type") or None
+        fluid_name = row_data.get("fluid_name") or None
+        fluid_brand_from_parser = row_data.get("fluid_brand") or None
+        viscosity_from_parser = row_data.get("viscosity_sae") or None
+        recommendation_rank = row_data.get("recommendation_rank") or 1
+        is_oem = row_data.get("is_oem_recommendation") or False
+        volume_liters = row_data.get("volume_liters") or None
+        applicability_conditions = row_data.get("applicability_conditions") or {}
+
+        try:
+            if not brand_name:
+                raise ValueError("Пустое название бренда")
+            if not model_name:
+                raise ValueError("Пустое название модели")
+
+            # --- Brand UPSERT ---
+            brand_id: UUID
+            if brand_name in brand_cache:
+                brand_id = brand_cache[brand_name]
+            else:
+                async with db.begin_nested():
+                    brand_id = await _upsert_brand(db, company_id, brand_name)
+                brand_cache[brand_name] = brand_id
+                created_brands += 1
+
+            # --- Model UPSERT ---
+            model_id: UUID
+            cache_key = (brand_id, model_name)
+            if cache_key in model_cache:
+                model_id = model_cache[cache_key]
+            else:
+                async with db.begin_nested():
+                    model_id = await _upsert_model(
+                        db, company_id, brand_id, model_name,
+                    )
+                model_cache[cache_key] = model_id
+                created_models += 1
+
+            # --- Variant hash (PVL-specific: includes sub_model, years, fuel) ---
+            variant_hash_raw = "|".join(
+                str(v or "") for v in [
+                    str(model_id), sub_model, engine_volume,
+                    year_start, year_end, fuel_type, market,
+                    json.dumps(attributes, sort_keys=True),
+                ]
+            )
+            import hashlib
+            source_hash = hashlib.sha256(variant_hash_raw.encode()).hexdigest()
+
+            variant_id: UUID
+            if source_hash in variant_cache:
+                variant_id = variant_cache[source_hash]
+            else:
+                async with db.begin_nested():
+                    variant_id = await _upsert_variant_pvl(
+                        db, company_id, model_id,
+                        sub_model=sub_model,
+                        engine_volume=engine_volume,
+                        year_start=year_start,
+                        year_end=year_end,
+                        fuel_type=fuel_type,
+                        market=market,
+                        attributes=attributes,
+                        source_hash=source_hash,
+                    )
+                variant_cache[source_hash] = variant_id
+                created_variants += 1
+
+            # --- Fluid UPSERT (optional — PVL может использовать fluid_name_override) ---
+            fluid_id: Optional[UUID] = None
+            hash_sig: Optional[str] = None
+
+            if fluid_name:
+                normalized = FluidNormalizer.normalize(
+                    fluid_name, viscosity_from_parser, None, node_type,
+                )
+                hash_sig = normalized["hash_signature"]
+                if hash_sig in fluid_cache:
+                    fluid_id = fluid_cache[hash_sig]
+                else:
+                    async with db.begin_nested():
+                        fluid_id = await _upsert_fluid(
+                            db, company_id,
+                            canonical_name=normalized["canonical_name"],
+                            brand=fluid_brand_from_parser or normalized["brand"],
+                            product_line=normalized["product_line"],
+                            viscosity_sae=normalized["viscosity_sae"],
+                            api_class=normalized["api_class"],
+                            fluid_type=normalized["fluid_type"].value,
+                            hash_signature=hash_sig,
+                        )
+                    fluid_cache[hash_sig] = fluid_id
+                    created_fluids += 1
+
+            # --- Recommendation INSERT с PVL-полями ---
+            try:
+                nt = NodeType(node_type) if node_type else NodeType.ENGINE
+            except ValueError:
+                nt = NodeType.ENGINE
+
+            vol_numeric = _parse_float(str(volume_liters)) if volume_liters else None
+
+            async with db.begin_nested():
+                rec_result = await db.execute(
+                    text("""
+                        INSERT INTO recommendations
+                            (company_id, car_variant_id, node_type, fluid_id,
+                             volume_liters, recommendation_rank,
+                             applicability_conditions, fluid_name_override,
+                             is_oem_recommendation, source)
+                        VALUES (:tid, :vid, CAST(:nt AS node_type), :fid,
+                                :vol, :rank,
+                                CAST(:cond AS jsonb), :foverride,
+                                :oem, 'pvl_import')
+                        ON CONFLICT (company_id, car_variant_id, node_type, recommendation_rank)
+                        DO UPDATE SET
+                            fluid_id = COALESCE(EXCLUDED.fluid_id, recommendations.fluid_id),
+                            fluid_name_override = COALESCE(EXCLUDED.fluid_name_override, recommendations.fluid_name_override),
+                            applicability_conditions = EXCLUDED.applicability_conditions,
+                            updated_at = NOW()
+                        RETURNING id
+                    """),
+                    {
+                        "tid": str(company_id),
+                        "vid": str(variant_id),
+                        "nt": nt.value,
+                        "fid": str(fluid_id) if fluid_id else None,
+                        "vol": vol_numeric,
+                        "rank": int(recommendation_rank),
+                        "cond": json.dumps(applicability_conditions),
+                        "foverride": fluid_name if not fluid_id else None,
+                        "oem": is_oem,
+                    },
+                )
+                rec_row = rec_result.scalar_one_or_none()
+                if rec_row is not None:
+                    new_recommendation_ids.append(str(rec_row))
+                    new_rows += 1
+                else:
+                    duplicates += 1
+
+            success += 1
+
+        except Exception as exc:
+            errors += 1
+            logger.warning(
+                "Ошибка PVL строки %d batch=%s: %s", i, batch_id, exc, exc_info=True
+            )
+
+        if i > 0 and i % BATCH_SIZE == 0:
+            await db.commit()
+            logger.info("PVL ETL обработано %d / %d строк batch=%s", i, total, batch_id)
 
     await db.commit()
 
