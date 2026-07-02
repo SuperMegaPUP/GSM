@@ -1,7 +1,7 @@
 # SNAPSHOT.md — Текущее состояние проекта
 
-**Дата:** 2026-06-23
-**Статус:** MVP + Sales Copilot 2.0 (RAG-indicator + hybrid search) — 120 seed-кейсов
+**Дата:** 2026-07-02
+**Статус:** MVP + Sales Copilot 2.0 + Predictive Analytics — 120 seed-кейсов
 
 ## Что сделано
 
@@ -56,13 +56,30 @@
 
 ### Этап 7: Frontend (Next.js 14 + Docker)
 - [x] shadcn/ui v4, Zustand, Axios, JWT-перехватчик, Pydantic error normalisation
-- [x] Login, Dashboard layout (Sidebar + TopNav), search, imports, sales-copilot
+- [x] Login, Dashboard layout (Sidebar + TopNav), search, imports, sales-copilot, analytics
 - [x] Search: фильтры по бренду/модели/году/двигателю, результаты по node_type, модель-селектор
 - [x] Imports: Drag&Drop загрузка, polling прогресса, история из API
-- [x] Sales Copilot Chat (новый): `SalesCopilotChat.tsx` (874 строки, SSE, 3 варианта, копирование, фидбек)
+- [x] Sales Copilot Chat (новый): `SalesCopilotChat.tsx` (910+ строк, SSE, 3 варианта, копирование, фидбек c toast + disabled)
 - [x] Sales Copilot (старый): `SalesCopilot.tsx` + `sse-client.ts` — используется на странице поиска масел
 - [x] Docker-контейнер `oil-frontend` на сети `backend_default` (Nginx upstream)
 - [x] Исправления: `API_URL` вместо `NEXT_PUBLIC_API_URL`, token key `access_token`, `min_length=1`, 422 `objection`
+- [x] **Страница `/dashboard/analytics`** — KPI карточки, тренды, план действий, инсайты
+- [x] **Sales Copilot:** кнопки фидбека с `disabled` + toast + подсветка зелёная/красная
+- [x] **Sales Copilot:** панель «Кейс в фокусе» с живыми деталями кейса
+- [x] **Sales Copilot:** панель «Статистика сессии» с живыми данными (total, used, won/lost, success rate)
+- [x] **Ссылка «Аналитика»** в боковом меню
+
+### Этап 8: Predictive Analytics
+- [x] `daily_trends` таблица + модель `DailyTrend` + миграция
+- [x] 7 правил в `predictive_analytics.py` (troubled/golden cases, popular objections, empty categories и др.)
+- [x] `compute_trends_task` (3 метрики) + добавлен в celery beat
+- [x] `GET /analytics/trends?days=30` — live сегодня + historical
+- [x] `GET /analytics/insights` — инсайты (популярные возражения, пустые категории, проблемные/золотые кейсы)
+- [x] `GET /analytics/cases/{id}/history` — история взаимодействий по кейсу
+- [x] **Баг fix:** `:outcome::objection_outcome → CAST` — фидбек endpoint работал с 500
+- [x] **Баг fix:** route order `/stats` перед `/{case_id}` — stats был недоступен
+- [x] **Live trends:** objections_total и objections_by_category для сегодня считаются на лету
+- [x] **total_lost** добавлен в `StatsResponse`
 
 ### Контекст проекта
 - [x] `context/` — 10 .md файлов (RULES, ARCHITECTURE, BACKLOG, SNAPSHOT, WORKLOG, HISTORY, VERSIONING, CONTEXT, RITUALS, TEMPLATES)
@@ -80,18 +97,19 @@
 │   │   ├── main.py
 │   │   ├── core/         (config, database, security, dependencies, minio_client, celery_app)
 │   │   ├── models/       (models.py — 9 ORM)
-│   │   ├── schemas/      (schemas.py, catalog_schemas.py, etl_schemas.py, search_schemas.py, sales_schemas.py)
-│   │   ├── routers/      (auth, catalog, imports, search, sales_copilot)
-│   │   ├── services/     (crud, excel_parser, normalizer, etl_pipeline, vector_indexer, search_engine, sales_indexer, sales_copilot)
-│   │   └── tasks/        (etl_tasks)
-│   ├── docker/           (init.sql, migration_fix.sql, Dockerfile)
+│   │   ├── schemas/      (schemas.py, catalog_schemas.py, etl_schemas.py, search_schemas.py, sales_schemas.py, analytics_schemas.py)
+│   │   ├── routers/      (auth, catalog, imports, search, sales_copilot, analytics)
+│   │   ├── services/     (crud, excel_parser, normalizer, etl_pipeline, vector_indexer, search_engine, sales_indexer, sales_copilot, predictive_analytics)
+│   │   ├── tasks/        (etl_tasks, scheduled_tasks)
+│   │   └── models/       (models.py, analytics.py)
+│   ├── docker/           (init.sql, migration_fix.sql, migration_daily_trends.sql, Dockerfile)
 │   └── docker-compose.yml
 ├── frontend/
 │   ├── app/
 │   │   ├── login/
-│   │   ├── dashboard/    (page, search, imports, sales-copilot)
+│   │   ├── dashboard/    (page, search, imports, sales-copilot, analytics)
 │   │   └── layout.tsx
-│   ├── components/       (ui/* shadcn, SalesCopilot)
+│   ├── components/       (ui/* shadcn, SalesCopilot, SalesCopilotChat)
 │   ├── lib/              (api.ts, sse-client.ts)
 │   └── store/            (auth-store.ts)
 ├── context/              (10 .md файлов)
@@ -101,8 +119,8 @@
 
 ## Следующая задача
 
-1. Установить sentence-transformers для cross-encoder re-ranker (опционально)
-2. Развернуть MCP-сервер (опционально, для Claude Desktop)
+1. sentence-transformers для cross-encoder re-ranker (опционально)
+2. MCP-сервер (опционально)
 3. Страница /dashboard/clients
 4. Unit-тесты для ETL, поиска и Sales Copilot
-5. Этап 8: Billing + predictive analytics
+5. Этап 8.3: Telegram-bot

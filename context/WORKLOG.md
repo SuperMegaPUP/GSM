@@ -1,6 +1,59 @@
 
 ---
 
+## Сессия от 2026-07-02_08-38
+
+**Что сделано:**
+
+- *(автоматическая запись — требуется уточнение)*
+
+**Решения:**
+-
+
+**Следующий шаг:**
+-
+
+
+---
+
+## Сессия 4 — 2026-07-02 — Predictive Analytics + Баги фидбека и статистики
+
+**Стек:** FastAPI 0.115+ / SQLAlchemy 2.0 async / Pydantic V2 / Next.js 14 / Celery Beat
+
+**Что сделано:**
+
+- Созданы 7 правил предиктивной аналитики в `predictive_analytics.py` (troubled cases, golden cases, popular objections, empty categories, и др.)
+- Создана таблица `daily_trends` + модель `DailyTrend` + миграция `migration_daily_trends.sql`
+- Создана Celery задача `compute_trends_task` с 3 метриками (objections_total, objections_by_category, case_stats)
+- Добавлен `compute-trends-daily` в `celery_app.conf.beat_schedule`
+- Созданы API endpoints: `GET /analytics/trends?days=30` (live today + historical), `GET /analytics/insights`, `GET /analytics/cases/{id}/history`
+- Создана страница `/dashboard/analytics` с KPI карточками, трендами, планом действий и инсайтами
+- Добавлена ссылка «Аналитика» в боковое меню
+- Фикс бэкенда: добавлен импорт timedelta в `analytics.py`
+- **Баг fix:** `record_objection_feedback` в `sales_copilot.py` — `:outcome::objection_outcome → CAST(:outcome AS objection_outcome)` — feedback endpoint был сломан
+- **Баг fix:** Route ordering — `/objection-cases/stats` теперь перед `{case_id}` — stats endpoint был недоступен
+- **Фича:** Live-счётчик возражений сегодня в `GET /analytics/trends` (не из nightly джобы, а прямой подсчёт)
+- **Фича:** Защита от двойного нажатия кнопок фидбека в Sales Copilot (`submittedRef`, `disabled`)
+- **Фича:** Подсветка кнопок: зелёная (Сработало) / красная (Не сработало) + toast через sonner
+- **Фича:** Подгрузка деталей кейса в панель «Кейс в фокусе» (GET /sales/objection-cases/{id})
+- **Фича:** Живая статистика сессии в Sales Copilot (total, total_used, total_won/lost, avg_success_rate)
+- **Фича:** Добавлен `total_lost` в `StatsResponse` + SQL
+- Инфра: celery-beat healthcheck отключён (был curl localhost:8000 в контейнере без веб-сервера)
+- Инфра: celery-beat добавлен volume mount для live-кода
+
+**Решения:**
+- Тренды хранятся в `daily_trends` (JSONB) для быстрых графиков, а сегодняшняя дата считается live
+- Финал фидбека — только первый case_id в variant (один клик = +1 usage_count)
+- Route order: статический `/stats` перед динамическим `/{case_id}`
+
+**Следующий шаг:**
+- sentence-transformers для cross-encoder re-ranker
+- MCP-сервер (опционально)
+- Страница /dashboard/clients
+- Unit-тесты
+
+---
+
 ## Сессия от 2026-06-23_20-10
 
 **Что сделано:**
